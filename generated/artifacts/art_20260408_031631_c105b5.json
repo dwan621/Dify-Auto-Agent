@@ -1,0 +1,187 @@
+{
+  "timestamp": "2026-04-08T03:16:31.485678",
+  "model_name": "deepseek-chat",
+  "provider": "deepseek",
+  "prompt_version": "v2.1",
+  "schema_version": "wf-spec.v2",
+  "requirement": {
+    "app_name": "Emoji Translator",
+    "description": "Translates text into sequences of emojis.",
+    "scene": "translation",
+    "user_goal": "Convert input text into a creative and expressive representation using only emojis.",
+    "inputs": [
+      {
+        "name": "text_input",
+        "label": "Text to Translate",
+        "type": "paragraph",
+        "required": true
+      }
+    ],
+    "output_contract": "A string composed solely of emojis that represents the meaning, tone, and key elements of the input text.",
+    "capabilities": [
+      "intent_analysis",
+      "generation",
+      "formatting"
+    ],
+    "node_preferences": {
+      "target_node_count": 5,
+      "need_private_kb": false,
+      "need_code_node": false,
+      "need_tools": false,
+      "need_branching": false
+    },
+    "runtime_config": {
+      "timeout": 30,
+      "max_retries": 2,
+      "model_tier": "deepseek-chat"
+    },
+    "constraints": []
+  },
+  "candidate_scores": [
+    {
+      "id": "cand_1",
+      "score": 73.8,
+      "ok": true,
+      "warnings": [],
+      "stats": {
+        "total_nodes": 6,
+        "type_counts": {
+          "start": 1,
+          "llm": 3,
+          "template": 1,
+          "answer": 1
+        },
+        "non_llm_node_ratio": 0.5,
+        "has_path_start_to_answer": true
+      },
+      "repair_rounds": 0
+    }
+  ],
+  "selected_candidate_id": "cand_1",
+  "selected_spec": {
+    "workflow_name": "Emoji Translator",
+    "description": "Translates text into sequences of emojis.",
+    "scene": "translation",
+    "inputs": [
+      {
+        "name": "text_input",
+        "label": "Text to Translate",
+        "type": "paragraph",
+        "required": true
+      }
+    ],
+    "output_contract": "A string composed solely of emojis that represents the meaning, tone, and key elements of the input text.",
+    "steps": [
+      {
+        "id": "start_1",
+        "type": "start",
+        "config": {}
+      },
+      {
+        "id": "llm_analyze_intent",
+        "type": "llm",
+        "config": {
+          "prompt": "Analyze the input text to identify:\n1. Key nouns, verbs, and adjectives\n2. Overall tone (happy, sad, formal, casual, etc.)\n3. Main actions or events\n4. Important contextual elements\n\nText: {{text_input}}\n\nProvide a concise analysis in JSON format with keys: key_elements, tone, actions, context.",
+          "model": "deepseek-chat",
+          "temperature": 0.3
+        }
+      },
+      {
+        "id": "llm_generate_emoji_concepts",
+        "type": "llm",
+        "config": {
+          "prompt": "Based on the analysis, generate emoji concepts for each key element.\n\nAnalysis: {{llm_analyze_intent.output}}\n\nFor each key element, suggest 2-3 relevant emojis. Consider tone and context.\nOutput as JSON with key 'emoji_mapping' containing an array of objects with 'element' and 'emoji_candidates'.",
+          "model": "deepseek-chat",
+          "temperature": 0.7
+        }
+      },
+      {
+        "id": "llm_construct_sequence",
+        "type": "llm",
+        "config": {
+          "prompt": "Construct a coherent emoji sequence that tells the story of the input text.\n\nOriginal text: {{text_input}}\nAnalysis: {{llm_analyze_intent.output}}\nEmoji concepts: {{llm_generate_emoji_concepts.output}}\n\nCreate a sequence using only emojis (no text). Ensure it captures meaning, tone, and flow. Output just the emoji string.",
+          "model": "deepseek-chat",
+          "temperature": 0.8
+        }
+      },
+      {
+        "id": "template_final_output",
+        "type": "template",
+        "config": {
+          "template": "{{llm_construct_sequence.output}}"
+        }
+      },
+      {
+        "id": "answer_1",
+        "type": "answer",
+        "config": {}
+      }
+    ],
+    "edges": [
+      {
+        "source": "start_1",
+        "target": "llm_analyze_intent"
+      },
+      {
+        "source": "llm_analyze_intent",
+        "target": "llm_generate_emoji_concepts"
+      },
+      {
+        "source": "llm_generate_emoji_concepts",
+        "target": "llm_construct_sequence"
+      },
+      {
+        "source": "llm_construct_sequence",
+        "target": "template_final_output"
+      },
+      {
+        "source": "template_final_output",
+        "target": "answer_1"
+      }
+    ],
+    "meta": {
+      "planning_mode": "llm_v2",
+      "model": "deepseek-chat",
+      "provider": "deepseek",
+      "prompt_version": "v2.1",
+      "schema_version": "wf-spec.v2",
+      "score": 73.8,
+      "selected_candidate_id": "cand_1",
+      "complexity_level": "simple",
+      "candidate_count": 1
+    },
+    "requirement_meta": {
+      "app_name": "Emoji Translator",
+      "description": "Translates text into sequences of emojis.",
+      "scene": "translation",
+      "user_goal": "Convert input text into a creative and expressive representation using only emojis.",
+      "inputs": [
+        {
+          "name": "text_input",
+          "label": "Text to Translate",
+          "type": "paragraph",
+          "required": true
+        }
+      ],
+      "output_contract": "A string composed solely of emojis that represents the meaning, tone, and key elements of the input text.",
+      "capabilities": [
+        "intent_analysis",
+        "generation",
+        "formatting"
+      ],
+      "node_preferences": {
+        "target_node_count": 5,
+        "need_private_kb": false,
+        "need_code_node": false,
+        "need_tools": false,
+        "need_branching": false
+      },
+      "runtime_config": {
+        "timeout": 30,
+        "max_retries": 2,
+        "model_tier": "deepseek-chat"
+      },
+      "constraints": []
+    }
+  }
+}

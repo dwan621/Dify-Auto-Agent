@@ -1,0 +1,208 @@
+{
+  "timestamp": "2026-04-08T03:10:34.207247",
+  "model_name": "deepseek-chat",
+  "provider": "deepseek",
+  "prompt_version": "v2.1",
+  "schema_version": "wf-spec.v2",
+  "requirement": {
+    "app_name": "工作流助手",
+    "description": "一个通用的工作流需求结构化助手，用于将用户需求转化为结构化的JSON格式。",
+    "scene": "generic",
+    "user_goal": "将用户描述的工作流需求转化为结构化的JSON格式，以便后续处理或自动化。",
+    "inputs": [
+      {
+        "name": "user_requirement",
+        "label": "用户需求描述",
+        "type": "paragraph",
+        "required": true
+      }
+    ],
+    "output_contract": "返回一个符合指定JSON Schema的结构化工作流需求描述。",
+    "capabilities": [
+      "input_check",
+      "intent_analysis",
+      "planning",
+      "generation",
+      "formatting"
+    ],
+    "node_preferences": {
+      "target_node_count": 5,
+      "need_private_kb": false,
+      "need_code_node": false,
+      "need_tools": false,
+      "need_branching": false
+    },
+    "runtime_config": {
+      "timeout": 30,
+      "max_retries": 3,
+      "model_tier": "deepseek-chat"
+    },
+    "constraints": []
+  },
+  "candidate_scores": [
+    {
+      "id": "cand_1",
+      "score": 73.8,
+      "ok": true,
+      "warnings": [],
+      "stats": {
+        "total_nodes": 6,
+        "type_counts": {
+          "start": 1,
+          "llm": 3,
+          "template": 1,
+          "answer": 1
+        },
+        "non_llm_node_ratio": 0.5,
+        "has_path_start_to_answer": true
+      },
+      "repair_rounds": 0
+    }
+  ],
+  "selected_candidate_id": "cand_1",
+  "selected_spec": {
+    "workflow_name": "工作流需求结构化助手",
+    "description": "将用户描述的工作流需求转化为结构化的JSON格式，用于后续处理或自动化",
+    "scene": "generic",
+    "inputs": [
+      {
+        "name": "user_requirement",
+        "label": "用户需求描述",
+        "type": "paragraph",
+        "required": true
+      }
+    ],
+    "output_contract": "返回一个符合指定JSON Schema的结构化工作流需求描述",
+    "steps": [
+      {
+        "id": "start_1",
+        "name": "开始节点",
+        "type": "start",
+        "config": {}
+      },
+      {
+        "id": "input_check_1",
+        "name": "输入检查",
+        "type": "llm",
+        "config": {
+          "prompt": "检查用户输入的工作流需求描述是否完整、清晰。如果输入不完整或模糊，请指出问题；如果完整，请确认并准备下一步处理。\n\n用户需求：{{user_requirement}}",
+          "variables": [
+            "user_requirement"
+          ],
+          "model": "deepseek-chat"
+        }
+      },
+      {
+        "id": "intent_analysis_1",
+        "name": "意图分析",
+        "type": "llm",
+        "config": {
+          "prompt": "分析用户工作流需求的核心意图和关键要素。识别以下信息：\n1. 工作流的主要目标\n2. 涉及的数据类型和来源\n3. 需要的处理步骤\n4. 预期的输出格式\n5. 任何特殊约束或要求\n\n用户需求：{{user_requirement}}",
+          "variables": [
+            "user_requirement"
+          ],
+          "model": "deepseek-chat"
+        }
+      },
+      {
+        "id": "planning_1",
+        "name": "规划生成",
+        "type": "llm",
+        "config": {
+          "prompt": "基于意图分析结果，规划工作流的结构化表示。生成包含以下部分的JSON结构：\n1. workflow_name: 工作流名称\n2. description: 详细描述\n3. inputs: 输入参数列表\n4. steps: 处理步骤列表\n5. edges: 步骤间连接关系\n6. output_contract: 输出约定\n\n请确保结构清晰、完整。",
+          "variables": [],
+          "model": "deepseek-chat"
+        }
+      },
+      {
+        "id": "formatting_1",
+        "name": "格式规范化",
+        "type": "template",
+        "config": {
+          "template": "{\n  \"structured_workflow\": {{planning_result}},\n  \"metadata\": {\n    \"generated_at\": \"{{timestamp}}\",\n    \"source_requirement\": \"{{user_requirement}}\",\n    \"version\": \"1.0\"\n  }\n}",
+          "variables": [
+            "planning_result",
+            "user_requirement",
+            "timestamp"
+          ]
+        }
+      },
+      {
+        "id": "answer_1",
+        "name": "结果输出",
+        "type": "answer",
+        "config": {
+          "answer": "{{formatted_result}}"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "start_1",
+        "target": "input_check_1"
+      },
+      {
+        "source": "input_check_1",
+        "target": "intent_analysis_1"
+      },
+      {
+        "source": "intent_analysis_1",
+        "target": "planning_1"
+      },
+      {
+        "source": "planning_1",
+        "target": "formatting_1"
+      },
+      {
+        "source": "formatting_1",
+        "target": "answer_1"
+      }
+    ],
+    "meta": {
+      "planning_mode": "llm_v2",
+      "model": "deepseek-chat",
+      "provider": "deepseek",
+      "prompt_version": "v2.1",
+      "schema_version": "wf-spec.v2",
+      "score": 73.8,
+      "selected_candidate_id": "cand_1",
+      "complexity_level": "simple",
+      "candidate_count": 1
+    },
+    "requirement_meta": {
+      "app_name": "工作流助手",
+      "description": "一个通用的工作流需求结构化助手，用于将用户需求转化为结构化的JSON格式。",
+      "scene": "generic",
+      "user_goal": "将用户描述的工作流需求转化为结构化的JSON格式，以便后续处理或自动化。",
+      "inputs": [
+        {
+          "name": "user_requirement",
+          "label": "用户需求描述",
+          "type": "paragraph",
+          "required": true
+        }
+      ],
+      "output_contract": "返回一个符合指定JSON Schema的结构化工作流需求描述。",
+      "capabilities": [
+        "input_check",
+        "intent_analysis",
+        "planning",
+        "generation",
+        "formatting"
+      ],
+      "node_preferences": {
+        "target_node_count": 5,
+        "need_private_kb": false,
+        "need_code_node": false,
+        "need_tools": false,
+        "need_branching": false
+      },
+      "runtime_config": {
+        "timeout": 30,
+        "max_retries": 3,
+        "model_tier": "deepseek-chat"
+      },
+      "constraints": []
+    }
+  }
+}

@@ -1,0 +1,103 @@
+﻿workflow_spec:
+  workflow_name: "复杂示例工作流"
+  description: "翻译 + 检索 + 工具 + 代码 + 分支（>=10节点）"
+  scene: "generic"
+  inputs:
+    - name: user_request
+      label: 用户需求
+      type: paragraph
+      required: true
+  output_contract:
+    sections:
+      - key: final_answer
+        label: 最终结果
+      - key: references
+        label: 参考来源
+  steps:
+    - id: start
+      type: start
+      title: 开始
+    - id: llm_intent
+      type: llm
+      title: 需求理解
+      prompt: 提取目标、约束和需要的执行能力。
+    - id: ifelse_route
+      type: ifelse
+      title: 执行路由
+      config:
+        cases:
+          - id: retrieval
+            label: 检索优先
+          - id: tool
+            label: 工具优先
+          - id: compute
+            label: 代码优先
+    - id: kb_retrieval
+      type: knowledge_retrieval
+      title: 知识检索
+    - id: tool_request
+      type: tool
+      title: HTTP 请求
+      config:
+        method: get
+        url: https://httpbin.org/get
+        headers:
+          Accept: application/json
+        params: "q={{#start.user_request#}}"
+    - id: code_clean
+      type: code
+      title: 数据清洗
+      config:
+        example_key: clean_text
+    - id: llm_generate
+      type: llm
+      title: 结果生成
+      prompt: 综合检索、工具和代码结果，输出结构化答案。
+    - id: code_format
+      type: code
+      title: Markdown 格式化
+      config:
+        example_key: format_markdown
+        variables:
+          - variable: title
+            value_selector: [start, user_request]
+          - variable: body
+            value_selector: [llm_generate, text]
+    - id: template_output
+      type: template
+      title: 模板整理
+    - id: llm_review
+      type: llm
+      title: 质量复核
+      prompt: 检查逻辑、完整性和可执行性。
+    - id: answer
+      type: answer
+      title: 回复
+  edges:
+    - source: start
+      target: llm_intent
+    - source: llm_intent
+      target: ifelse_route
+    - source: ifelse_route
+      target: kb_retrieval
+      branch: retrieval
+    - source: ifelse_route
+      target: tool_request
+      branch: tool
+    - source: ifelse_route
+      target: code_clean
+      branch: compute
+    - source: kb_retrieval
+      target: llm_generate
+    - source: tool_request
+      target: llm_generate
+    - source: code_clean
+      target: llm_generate
+    - source: llm_generate
+      target: code_format
+    - source: code_format
+      target: template_output
+    - source: template_output
+      target: llm_review
+    - source: llm_review
+      target: answer

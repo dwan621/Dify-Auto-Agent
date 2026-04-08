@@ -1,0 +1,223 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auto-Agent 工作流生成器</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ asset_version }}">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="app-header__title">
+        <h1>Auto-Agent 工作流生成器</h1>
+        <p class="subtitle">模型主导节点规划（v2）：多候选 + 评分 + 护栏 + 可回放</p>
+      </div>
+      <div class="app-header__meta">
+        <div id="uiStatus" class="status-pill" role="status" aria-live="polite">未分析</div>
+      </div>
+    </header>
+
+    <main class="app-main" role="main">
+      <div id="healthWarn" class="alert alert--warn" style="display:none;" role="alert"></div>
+
+      <section class="panel panel--left" aria-label="任务输入与配置">
+        <div class="card">
+          <div class="card__header">
+            <div class="card__title">使用步骤</div>
+            <div class="card__desc">跟着步骤走，第一次使用也能顺利完成生成。</div>
+          </div>
+          <ol id="stepper" class="stepper" aria-label="操作步骤">
+            <li class="stepper__item" data-step="1"><span class="stepper__dot" aria-hidden="true"></span><span class="stepper__text">描述需求</span></li>
+            <li class="stepper__item" data-step="2"><span class="stepper__dot" aria-hidden="true"></span><span class="stepper__text">分析需求</span></li>
+            <li class="stepper__item" data-step="3"><span class="stepper__dot" aria-hidden="true"></span><span class="stepper__text">编辑节点</span></li>
+            <li class="stepper__item" data-step="4"><span class="stepper__dot" aria-hidden="true"></span><span class="stepper__text">校验 Spec</span></li>
+            <li class="stepper__item" data-step="5"><span class="stepper__dot" aria-hidden="true"></span><span class="stepper__text">生成 YAML</span></li>
+          </ol>
+        </div>
+
+        <div class="card">
+          <div class="card__header">
+            <div class="card__title">对话记录</div>
+            <div class="card__desc">系统会把追问与提示写在这里，方便你回看。</div>
+          </div>
+          <div class="chat-box" id="chatBox" role="log" aria-live="polite">
+            <div class="message message--system">你好，请用 2～5 句话描述你想创建的工作流。
+例如：翻译 + 检索 + 工具调用 + 格式化输出。</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__header">
+            <div class="card__title">需求输入</div>
+            <div class="card__desc">先输入需求，再点击“分析需求”。</div>
+          </div>
+          <div class="form-grid">
+            <div class="form-row form-row--two">
+              <div class="field">
+                <label class="field__label" for="quickTemplate">快速填入示例</label>
+                <select id="quickTemplate" class="select">
+                  <option value="">选择示例（可选）</option>
+                  <option value="translate">中英翻译工作流</option>
+                  <option value="summary">文章总结工作流</option>
+                  <option value="complex">复杂 10+ 节点工作流</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="field__label" for="loadComplexBtn">模板</label>
+                <button id="loadComplexBtn" type="button" class="button button--secondary">加载复杂模板</button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="userInput">你的需求</label>
+              <textarea id="userInput" class="textarea" placeholder="描述你的目标、输入输出、是否需要检索/工具、约束条件等…"></textarea>
+              <div class="field__hint">建议包含：目标、输入来源、关键步骤、输出格式、失败兜底。</div>
+            </div>
+
+            <div class="form-row">
+              <button id="analyzeBtn" class="button button--primary">分析需求</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__header">
+            <div class="card__title">补充配置</div>
+            <div class="card__desc">可选项，不影响基本生成流程。</div>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-row form-row--two">
+              <div class="field">
+                <label class="field__label" for="appName">应用名称</label>
+                <input id="appName" class="input" type="text" placeholder="可选，例如：智能总结助手">
+              </div>
+              <div class="field">
+                <label class="field__label" for="appDesc">应用描述</label>
+                <input id="appDesc" class="input" type="text" placeholder="可选，例如：把长文变成结构化摘要">
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="answersInput">补充问题回答</label>
+              <textarea id="answersInput" class="textarea" placeholder="可选，一行一个"></textarea>
+            </div>
+
+            <div class="form-row form-row--two">
+              <div class="field">
+                <label class="field__label" for="budgetLevel">能力裁剪</label>
+                <select id="budgetLevel" class="select">
+                  <option value="balanced">balanced（推荐）</option>
+                  <option value="low">low（低成本）</option>
+                  <option value="high">high（高覆盖）</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="field__label" for="maxExecNodes">执行节点上限</label>
+                <input id="maxExecNodes" class="input" type="number" min="0" max="3" placeholder="0-3（可选）">
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="checkbox">
+                <input id="autoImport" type="checkbox">
+                <span>生成后自动导入 Dify（失败不影响下载）</span>
+              </label>
+            </div>
+
+            <div class="form-row">
+              <button id="generateBtn" class="button button--primary">生成 YAML</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel panel--right" aria-label="预览与编辑">
+        <div class="card">
+          <div class="card__header">
+            <div class="card__title">工作流预览</div>
+            <div class="card__desc">分析后会出现候选评分、节点列表与告警提示。</div>
+          </div>
+
+          <div class="grid-2">
+            <div class="card card--inner">
+              <div class="card__header">
+                <div class="card__title">当前场景</div>
+              </div>
+              <div id="sceneLabel" class="metric">暂无</div>
+            </div>
+            <div class="card card--inner">
+              <div class="card__header">
+                <div class="card__title">规划信息</div>
+              </div>
+              <div id="planningMeta" class="mono muted">尚未分析</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__header">
+            <div class="card__title">候选评分</div>
+            <div class="card__desc">用于解释为什么选这个方案。</div>
+          </div>
+          <ul id="candidateList" class="list"></ul>
+        </div>
+
+        <div class="card">
+          <div class="card__header card__header--row">
+            <div>
+              <div class="card__title">节点流程</div>
+              <div class="card__desc">你可以改标题、提示词与配置。修改会写回当前 Spec。</div>
+            </div>
+            <div class="button-group">
+              <button id="expandAllBtn" type="button" class="button button--ghost">展开全部</button>
+              <button id="collapseAllBtn" type="button" class="button button--ghost">收起全部</button>
+            </div>
+          </div>
+          <ul id="nodeList" class="node-editor-list"></ul>
+        </div>
+
+        <div class="card">
+          <div class="card__header">
+            <div class="card__title">校验与修复</div>
+            <div class="card__desc">建议在生成前先点一次“仅校验 Spec”。</div>
+          </div>
+          <ul id="warningList" class="list"></ul>
+        </div>
+
+        <div class="card">
+          <div class="card__header">
+            <div class="card__title">生成结果</div>
+            <div class="card__desc">下载、复制与导入状态都在这里。</div>
+          </div>
+
+          <div class="result">
+            <div id="resultMessage" class="result__message" role="status" aria-live="polite">尚未生成</div>
+            <div id="artifactMeta" class="result__meta"></div>
+            <a id="downloadLink" class="link" href="#" target="_blank" rel="noreferrer" style="display:none;">下载 YAML 文件</a>
+          </div>
+
+          <div class="button-group button-group--right">
+            <button id="copyYamlBtn" type="button" class="button button--secondary">复制 YAML</button>
+            <button id="validateBtn" type="button" class="button button--secondary">仅校验 Spec</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__header card__header--row">
+            <div>
+              <div class="card__title">YAML 内容预览</div>
+              <div class="card__desc">用于快速检查结构与缩进。</div>
+            </div>
+            <button id="copyYamlTopBtn" type="button" class="button button--ghost">复制</button>
+          </div>
+          <pre id="yamlPreview" class="code" aria-label="YAML 预览"></pre>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="{{ url_for('static', filename='app.js') }}?v={{ asset_version }}"></script>
+</body>
+</html>

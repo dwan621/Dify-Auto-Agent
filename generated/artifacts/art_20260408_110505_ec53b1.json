@@ -1,0 +1,208 @@
+{
+  "timestamp": "2026-04-08T11:05:05.708118",
+  "model_name": "deepseek-chat",
+  "provider": "deepseek",
+  "prompt_version": "v2.1",
+  "schema_version": "wf-spec.v2",
+  "requirement": {
+    "app_name": "Emoji Translator",
+    "description": "Translates emoji sequences into descriptive text explanations",
+    "scene": "translation",
+    "user_goal": "Understand the meaning and context behind sequences of emojis",
+    "inputs": [
+      {
+        "name": "emoji_input",
+        "label": "Emoji Sequence",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "context_hint",
+        "label": "Optional Context Hint",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "output_contract": "A clear, natural language explanation of what the emoji sequence likely represents, including cultural context and common usage scenarios.",
+    "capabilities": [
+      "intent_analysis",
+      "generation",
+      "formatting"
+    ],
+    "node_preferences": {
+      "target_node_count": 5,
+      "need_private_kb": false,
+      "need_code_node": false,
+      "need_tools": false,
+      "need_branching": false
+    },
+    "runtime_config": {
+      "max_tokens": 500,
+      "temperature": 0.7,
+      "model_tier": "deepseek-chat"
+    },
+    "constraints": []
+  },
+  "candidate_scores": [
+    {
+      "id": "cand_1",
+      "score": 73.8,
+      "ok": true,
+      "warnings": [],
+      "stats": {
+        "total_nodes": 6,
+        "type_counts": {
+          "start": 1,
+          "llm": 3,
+          "template": 1,
+          "answer": 1
+        },
+        "non_llm_node_ratio": 0.5,
+        "has_path_start_to_answer": true
+      },
+      "repair_rounds": 0
+    }
+  ],
+  "selected_candidate_id": "cand_1",
+  "selected_spec": {
+    "workflow_name": "Emoji Translator",
+    "description": "Translates emoji sequences into descriptive text explanations",
+    "scene": "translation",
+    "inputs": [
+      {
+        "name": "emoji_input",
+        "label": "Emoji Sequence",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "context_hint",
+        "label": "Optional Context Hint",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "output_contract": "A clear, natural language explanation of what the emoji sequence likely represents, including cultural context and common usage scenarios.",
+    "steps": [
+      {
+        "id": "start_1",
+        "type": "start",
+        "config": {}
+      },
+      {
+        "id": "emoji_analysis",
+        "type": "llm",
+        "config": {
+          "prompt": "Analyze the following emoji sequence: {{emoji_input}}. Break it down into individual emojis and identify potential meanings for each. Consider the sequence as a whole. If context hint is provided ({{context_hint}}), incorporate it into your analysis.",
+          "model": "deepseek-chat",
+          "temperature": 0.7,
+          "max_tokens": 200
+        }
+      },
+      {
+        "id": "meaning_synthesis",
+        "type": "llm",
+        "config": {
+          "prompt": "Based on this emoji analysis: {{emoji_analysis.output}}, synthesize a coherent meaning. Describe what the sequence likely represents as a complete message or scenario. Consider common usage patterns in digital communication.",
+          "model": "deepseek-chat",
+          "temperature": 0.7,
+          "max_tokens": 150
+        }
+      },
+      {
+        "id": "context_enrichment",
+        "type": "llm",
+        "config": {
+          "prompt": "For this emoji meaning: {{meaning_synthesis.output}}, add cultural context and usage scenarios. Explain when and why people might use this sequence, including any regional or platform-specific variations.",
+          "model": "deepseek-chat",
+          "temperature": 0.7,
+          "max_tokens": 150
+        }
+      },
+      {
+        "id": "format_response",
+        "type": "template",
+        "config": {
+          "template": "**Emoji Sequence:** {{emoji_input}}\n\n**Explanation:** {{meaning_synthesis.output}}\n\n**Context & Usage:** {{context_enrichment.output}}\n\n**Note:** Emoji interpretations can vary based on context, culture, and personal usage."
+        }
+      },
+      {
+        "id": "answer_1",
+        "type": "answer",
+        "config": {}
+      }
+    ],
+    "edges": [
+      {
+        "source": "start_1",
+        "target": "emoji_analysis"
+      },
+      {
+        "source": "emoji_analysis",
+        "target": "meaning_synthesis"
+      },
+      {
+        "source": "meaning_synthesis",
+        "target": "context_enrichment"
+      },
+      {
+        "source": "context_enrichment",
+        "target": "format_response"
+      },
+      {
+        "source": "format_response",
+        "target": "answer_1"
+      }
+    ],
+    "meta": {
+      "planning_mode": "llm_v2",
+      "model": "deepseek-chat",
+      "provider": "deepseek",
+      "prompt_version": "v2.1",
+      "schema_version": "wf-spec.v2",
+      "score": 73.8,
+      "selected_candidate_id": "cand_1",
+      "complexity_level": "simple",
+      "candidate_count": 1
+    },
+    "requirement_meta": {
+      "app_name": "Emoji Translator",
+      "description": "Translates emoji sequences into descriptive text explanations",
+      "scene": "translation",
+      "user_goal": "Understand the meaning and context behind sequences of emojis",
+      "inputs": [
+        {
+          "name": "emoji_input",
+          "label": "Emoji Sequence",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "context_hint",
+          "label": "Optional Context Hint",
+          "type": "text",
+          "required": false
+        }
+      ],
+      "output_contract": "A clear, natural language explanation of what the emoji sequence likely represents, including cultural context and common usage scenarios.",
+      "capabilities": [
+        "intent_analysis",
+        "generation",
+        "formatting"
+      ],
+      "node_preferences": {
+        "target_node_count": 5,
+        "need_private_kb": false,
+        "need_code_node": false,
+        "need_tools": false,
+        "need_branching": false
+      },
+      "runtime_config": {
+        "max_tokens": 500,
+        "temperature": 0.7,
+        "model_tier": "deepseek-chat"
+      },
+      "constraints": []
+    }
+  }
+}

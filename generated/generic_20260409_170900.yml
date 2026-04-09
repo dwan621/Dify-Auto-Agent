@@ -1,0 +1,527 @@
+app:
+  description: 翻译 + 检索 + 工具 + 代码 + 分支（>=10节点）
+  icon: 🤖
+  icon_background: '#FFEAD5'
+  mode: advanced-chat
+  name: 复杂示例工作流
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/deepseek:0.0.11@35bcd3f233f99d07bdadef8b326945df3bda5e8f773330144bc90d84800336b9
+    version: null
+kind: app
+version: 0.6.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: false
+      fileUploadConfig:
+        attachment_image_file_size_limit: 2
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        file_upload_limit: 20
+        image_file_batch_limit: 10
+        image_file_size_limit: 10
+        single_chunk_attachment_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: llm
+        isInIteration: false
+        isInLoop: false
+      id: start-source-llm_intent-target
+      source: start
+      sourceHandle: source
+      target: llm_intent
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: if-else
+        isInIteration: false
+        isInLoop: false
+      id: llm_intent-source-ifelse_route-target
+      source: llm_intent
+      sourceHandle: source
+      target: ifelse_route
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: knowledge-retrieval
+        isInIteration: false
+        isInLoop: false
+      id: ifelse_route-retrieval-kb_retrieval-target
+      source: ifelse_route
+      sourceHandle: retrieval
+      target: kb_retrieval
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: ifelse_route-compute-code_clean-target
+      source: ifelse_route
+      sourceHandle: compute
+      target: code_clean
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: knowledge-retrieval
+        targetType: llm
+        isInIteration: false
+        isInLoop: false
+      id: kb_retrieval-source-llm_generate-target
+      source: kb_retrieval
+      sourceHandle: source
+      target: llm_generate
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: llm
+        isInIteration: false
+        isInLoop: false
+      id: code_clean-source-llm_generate-target
+      source: code_clean
+      sourceHandle: source
+      target: llm_generate
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: llm
+        isInIteration: false
+        isInLoop: false
+      id: template_output-source-llm_review-target
+      source: template_output
+      sourceHandle: source
+      target: llm_review
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: answer
+        isInIteration: false
+        isInLoop: false
+      id: llm_review-source-answer-target
+      source: llm_review
+      sourceHandle: source
+      target: answer
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+        isInLoop: false
+      id: ifelse_route-tool-llm_generate-target
+      source: ifelse_route
+      sourceHandle: tool
+      target: llm_generate
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+        isInLoop: false
+      id: llm_generate-source-template_output-target
+      source: llm_generate
+      sourceHandle: source
+      target: template_output
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        selected: false
+        title: 开始
+        type: start
+        variables:
+        - default: ''
+          hint: ''
+          label: 用户需求
+          options: []
+          placeholder: ''
+          required: true
+          type: paragraph
+          variable: user_request
+      height: 72
+      id: start
+      position:
+        x: 80
+        y: 280
+      positionAbsolute:
+        x: 80
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            {{#sys.files#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: false
+            size: 10
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: deepseek-chat
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - role: system
+          text: '提取目标、约束和需要的执行能力。
+
+
+            用户输入：
+
+            - user_request: {{#start.user_request#}}'
+        selected: false
+        title: 需求理解
+        type: llm
+        vision:
+          enabled: false
+      height: 87
+      id: llm_intent
+      position:
+        x: 380
+        y: 280
+      positionAbsolute:
+        x: 380
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        cases:
+        - case_id: retrieval
+          id: retrieval
+          logical_operator: or
+          conditions:
+          - id: cond_710ad742
+            varType: string
+            comparison_operator: contains
+            value: retrieval
+            variable_selector:
+            - llm_intent
+            - text
+        - case_id: tool
+          id: tool
+          logical_operator: or
+          conditions:
+          - id: cond_c69104f4
+            varType: string
+            comparison_operator: contains
+            value: tool
+            variable_selector:
+            - llm_intent
+            - text
+        - case_id: compute
+          id: compute
+          logical_operator: or
+          conditions:
+          - id: cond_68a86ef2
+            varType: string
+            comparison_operator: contains
+            value: compute
+            variable_selector:
+            - llm_intent
+            - text
+        selected: false
+        title: 执行路由
+        type: if-else
+      height: 99
+      id: ifelse_route
+      position:
+        x: 680
+        y: 280
+      positionAbsolute:
+        x: 680
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        dataset_ids:
+        - 9rXRQWgiUCyrX2WhEZIRU6SJ/MQbvSW5qejeaZAme11e7pFDJR2IZYhSZZRc7dBY
+        multiple_retrieval_config:
+          reranking_enable: false
+          reranking_mode: reranking_model
+          top_k: 4
+        query_attachment_selector: []
+        query_variable_selector:
+        - start
+        - user_request
+        retrieval_mode: multiple
+        selected: true
+        title: 知识检索
+        type: knowledge-retrieval
+      height: 89
+      id: kb_retrieval
+      position:
+        x: 980
+        y: 400
+      positionAbsolute:
+        x: 980
+        y: 400
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        code: "import re\n\ndef main(input_text: str) -> dict:\n    text = re.sub(r\"\
+          \\s+\", \" \", (input_text or \"\")).strip()\n    return {\"result\": text}\n"
+        code_language: python3
+        outputs:
+          result:
+            type: string
+            children: null
+        selected: false
+        title: 数据清洗
+        type: code
+        variables:
+        - variable: input_text
+          value_selector:
+          - start
+          - user_request
+      height: 51
+      id: code_clean
+      position:
+        x: 1280
+        y: 340
+      positionAbsolute:
+        x: 1280
+        y: 340
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            {{#sys.files#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: false
+            size: 10
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: deepseek-chat
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - role: system
+          text: '综合检索、工具和代码结果，输出结构化答案。
+
+
+            用户输入：
+
+            - user_request: {{#start.user_request#}}
+
+
+            上游节点输出结果：
+
+            - kb_retrieval: {{#kb_retrieval.result#}}
+
+            - code_clean: {{#code_clean.result#}}
+
+
+            请把结果整理成固定结构输出：
+
+            【最终结果】
+
+            【参考来源】
+
+            不要输出解释。'
+        selected: false
+        title: 结果生成
+        type: llm
+        vision:
+          enabled: false
+      height: 87
+      id: llm_generate
+      position:
+        x: 1580
+        y: 460
+      positionAbsolute:
+        x: 1580
+        y: 460
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        selected: true
+        template: '【最终结果】
+
+          {{ arg1 }}
+
+
+          【参考来源】
+
+          {{ arg1 }}'
+        title: 模板整理
+        type: template-transform
+        variables:
+        - variable: arg1
+          value_selector:
+          - llm_generate
+          - text
+      height: 51
+      id: template_output
+      position:
+        x: 1880
+        y: 460
+      positionAbsolute:
+        x: 1880
+        y: 460
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            {{#sys.files#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: false
+            size: 10
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: deepseek-chat
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - role: system
+          text: '检查逻辑、完整性和可执行性。
+
+
+            用户输入：
+
+            - user_request: {{#start.user_request#}}
+
+
+            上游节点输出结果：
+
+            - template_output: {{#template_output.output#}}'
+        selected: false
+        title: 质量复核
+        type: llm
+        vision:
+          enabled: false
+      height: 87
+      id: llm_review
+      position:
+        x: 2180
+        y: 460
+      positionAbsolute:
+        x: 2180
+        y: 460
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        answer: '{{#llm_review.text#}}'
+        selected: false
+        title: 回复
+        type: answer
+        variables: []
+      height: 102
+      id: answer
+      position:
+        x: 2480
+        y: 460
+      positionAbsolute:
+        x: 2480
+        y: 460
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    viewport:
+      x: -159.26539869531166
+      y: 186.60632074709312
+      zoom: 0.7578582832551991
+  rag_pipeline_variables: []

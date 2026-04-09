@@ -1,4 +1,4 @@
-﻿from flask import Flask, render_template, request, jsonify, send_from_directory, Response
+from flask import Flask, render_template, request, jsonify, send_from_directory, Response
 import os
 import re
 import json
@@ -347,7 +347,10 @@ SUPPORTED_STEP_TYPES = {
     "code",
     "knowledge_retrieval",
     "tool",
-    "parameter_extract"
+    "parameter_extract",
+    "variable_aggregator",
+    "iteration",
+    "loop",
 }
 
 
@@ -532,12 +535,15 @@ workflow_name, description, scene, inputs, output_contract, steps, edges
 约束：
 1) 必须包含一个 start 节点和一个 answer 节点
 2) edges 里的 source/target 必须引用 steps 里的 id
+2.1) ifelse 的分支连边用 edges[].branch 表达，branch 值应与 steps[].config.cases[].id 对齐
+2.2) code/tool 如需失败兜底，可设置 steps[].config.error_strategy="fail-branch"，并在 edges 中用 edges[].source_handle 指定 success-branch / fail-branch
 3) steps 至少 5 个，最多 {MAX_NODE_LIMIT} 个
 4) 如使用 tool 节点，config.url 只能是以下主机之一：{sorted(list(SAFE_TOOL_HOSTS))}
 5) tool 节点 config 建议包含：method/url/headers/body/variables
 6) code 节点 config 建议包含：language/script/example_key/variables
 7) code.example_key 可选值：{sorted(list(CODE_TEMPLATE_LIBRARY.keys()))}
 8) 不要把所有逻辑都压成 llm，优先按能力使用 knowledge_retrieval / code / tool / ifelse
+9) 当存在多分支或 fail-branch 兜底时，使用 variable_aggregator 做汇合，再连接到后续节点
 
 requirement:
 {json.dumps(requirement, ensure_ascii=False)}
@@ -711,12 +717,47 @@ def validate_workflow_spec_v2(spec: dict, max_nodes: int = MAX_NODE_LIMIT) -> di
         if source not in step_ids or target not in step_ids:
             errors.append(f"edge[{idx}] 引用了不存在节点: {source}->{target}")
             continue
-        key = (source, target, edge.get("branch"))
+        key = (source, target, edge.get("branch"), edge.get("source_handle"))
         if key in seen_edges:
             warnings.append(f"重复 edge: {source}->{target}")
             continue
         seen_edges.add(key)
         valid_edges.append(edge)
+
+    for step in steps:
+        if not isinstance(step, dict):
+            continue
+        sid = step.get("id")
+        stype = step.get("type")
+        if not sid or sid not in step_ids:
+            continue
+
+        if stype == "ifelse":
+            cfg = step.get("config", {}) or {}
+            raw_cases = cfg.get("cases", [])
+            if isinstance(raw_cases, list) and raw_cases:
+                case_ids = []
+                for c in raw_cases:
+                    if isinstance(c, dict):
+                        case_id = c.get("id") or c.get("case_id")
+                        if case_id:
+                            case_ids.append(str(case_id))
+                if case_ids:
+                    outgoing = [e for e in valid_edges if e.get("source") == sid]
+                    branch_set = {str(e.get("branch")) for e in outgoing if e.get("branch")}
+                    for case_id in case_ids:
+                        if case_id not in branch_set:
+                            errors.append(f"ifelse 节点 {sid} 缺少分支连边: {case_id}")
+
+        if stype in {"tool", "code"}:
+            cfg = step.get("config", {}) or {}
+            if isinstance(cfg, dict) and cfg.get("error_strategy") == "fail-branch":
+                outgoing = [e for e in valid_edges if e.get("source") == sid]
+                handles = {str(e.get("source_handle") or "source") for e in outgoing}
+                if "success-branch" not in handles:
+                    errors.append(f"{stype} 节点 {sid} error_strategy=fail-branch 但缺少 success-branch 连边")
+                if "fail-branch" not in handles:
+                    errors.append(f"{stype} 节点 {sid} error_strategy=fail-branch 但缺少 fail-branch 连边")
 
     if step_ids and _has_cycle(step_ids, valid_edges):
         errors.append("workflow 存在循环依赖")
@@ -833,6 +874,229 @@ def deterministic_fix_workflow_spec_v2(spec: dict) -> tuple[dict, list[str]]:
     return fixed, warnings
 
 
+def _sorted_edges(edges: list[dict]) -> list[dict]:
+    def key(e: dict):
+        return (
+            str(e.get("source") or ""),
+            str(e.get("target") or ""),
+            str(e.get("branch") or ""),
+            str(e.get("source_handle") or ""),
+        )
+
+    return sorted([e for e in edges if isinstance(e, dict)], key=key)
+
+
+def _pick_default_target_id(spec: dict) -> str | None:
+    steps = spec.get("steps", []) if isinstance(spec, dict) else []
+    if not isinstance(steps, list):
+        return None
+    existing = {s.get("id") for s in steps if isinstance(s, dict) and s.get("id")}
+    for preferred in ("llm_generate", "template_output", "llm_review", "answer"):
+        if preferred in existing:
+            return preferred
+    llm_ids = [s.get("id") for s in steps if isinstance(s, dict) and s.get("type") == "llm" and s.get("id")]
+    return llm_ids[-1] if llm_ids else None
+
+
+def _ensure_ifelse_branch_edges(spec: dict) -> list[str]:
+    warnings: list[str] = []
+    steps = spec.get("steps", [])
+    edges = spec.get("edges", [])
+    if not isinstance(steps, list) or not isinstance(edges, list):
+        return warnings
+
+    default_target = _pick_default_target_id(spec)
+    if not default_target:
+        return warnings
+
+    step_ids = {s.get("id") for s in steps if isinstance(s, dict) and s.get("id")}
+    for step in steps:
+        if not isinstance(step, dict) or step.get("type") != "ifelse":
+            continue
+        sid = step.get("id")
+        if not sid or sid not in step_ids:
+            continue
+        cfg = step.get("config", {}) or {}
+        raw_cases = cfg.get("cases", [])
+        if not isinstance(raw_cases, list) or not raw_cases:
+            continue
+        case_ids = []
+        for c in raw_cases:
+            if isinstance(c, dict):
+                case_id = c.get("id") or c.get("case_id")
+                if case_id:
+                    case_ids.append(str(case_id))
+
+        if not case_ids:
+            continue
+
+        outgoing = [e for e in edges if isinstance(e, dict) and e.get("source") == sid]
+        existing_branches = {str(e.get("branch")) for e in outgoing if e.get("branch")}
+        for case_id in case_ids:
+            if case_id in existing_branches:
+                continue
+            edges.append({"source": sid, "target": default_target, "branch": case_id})
+            warnings.append(f"ifelse {sid} 缺少分支 {case_id}，已补默认连边")
+
+    spec["edges"] = _sorted_edges(edges)
+    return warnings
+
+
+def _insert_variable_aggregators_for_conditional_merges(spec: dict) -> list[str]:
+    warnings: list[str] = []
+    steps = spec.get("steps", [])
+    edges = spec.get("edges", [])
+    if not isinstance(steps, list) or not isinstance(edges, list):
+        return warnings
+
+    step_by_id = {s.get("id"): s for s in steps if isinstance(s, dict) and s.get("id")}
+    incoming: dict[str, list[dict]] = {}
+    for e in edges:
+        if not isinstance(e, dict):
+            continue
+        tgt = e.get("target")
+        if not tgt:
+            continue
+        incoming.setdefault(tgt, []).append(e)
+
+    created = 0
+    for target_id, inc_edges in list(incoming.items()):
+        if len(inc_edges) <= 1:
+            continue
+        target_step = step_by_id.get(target_id)
+        if not isinstance(target_step, dict):
+            continue
+        if target_step.get("type") not in {"llm", "template", "answer"}:
+            continue
+        if not any(e.get("branch") for e in inc_edges):
+            continue
+
+        agg_id = _new_id("agg")
+        created += 1
+        step_by_id[agg_id] = {"id": agg_id, "type": "variable_aggregator", "title": "分支汇合", "config": {}}
+        steps.append(step_by_id[agg_id])
+
+        new_edges: list[dict] = []
+        for e in edges:
+            if not isinstance(e, dict):
+                continue
+            if e.get("target") == target_id:
+                continue
+            new_edges.append(e)
+
+        for e in inc_edges:
+            ne = {"source": e.get("source"), "target": agg_id}
+            if e.get("branch"):
+                ne["branch"] = e.get("branch")
+            if e.get("source_handle"):
+                ne["source_handle"] = e.get("source_handle")
+            new_edges.append(ne)
+
+        new_edges.append({"source": agg_id, "target": target_id})
+        edges = new_edges
+        warnings.append(f"检测到 {target_id} 存在多分支汇入，已插入 variable_aggregator={agg_id}")
+
+    spec["steps"] = steps
+    spec["edges"] = _sorted_edges(edges)
+    if created:
+        spec.setdefault("meta", {})
+        spec["meta"]["inserted_aggregators"] = created
+    return warnings
+
+
+def _wrap_exec_node_with_fail_branch(spec: dict) -> list[str]:
+    warnings: list[str] = []
+    steps = spec.get("steps", [])
+    edges = spec.get("edges", [])
+    if not isinstance(steps, list) or not isinstance(edges, list):
+        return warnings
+
+    step_by_id = {s.get("id"): s for s in steps if isinstance(s, dict) and s.get("id")}
+    step_type_map = {sid: step_by_id[sid].get("type") for sid in step_by_id}
+
+    outgoing: dict[str, list[dict]] = {}
+    for e in edges:
+        if not isinstance(e, dict):
+            continue
+        src = e.get("source")
+        if not src:
+            continue
+        outgoing.setdefault(src, []).append(e)
+
+    new_edges = [e for e in edges if isinstance(e, dict)]
+
+    for step in list(steps):
+        if not isinstance(step, dict):
+            continue
+        stype = step.get("type")
+        if stype not in {"tool", "code"}:
+            continue
+        sid = step.get("id")
+        if not sid:
+            continue
+        cfg = step.get("config", {}) if isinstance(step.get("config"), dict) else {}
+        if cfg.get("error_strategy"):
+            continue
+        outs = outgoing.get(sid, [])
+        if not outs:
+            continue
+        target_ids = [e.get("target") for e in outs if e.get("target")]
+        if not target_ids:
+            continue
+        primary_target = None
+        for tid in target_ids:
+            if step_type_map.get(tid) in {"llm", "template", "answer"}:
+                primary_target = tid
+                break
+        if not primary_target:
+            continue
+
+        fallback_llm_id = _new_id("llm_fallback")
+        agg_id = _new_id("agg")
+
+        steps.append({
+            "id": fallback_llm_id,
+            "type": "llm",
+            "title": "失败兜底",
+            "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。",
+        })
+        steps.append({
+            "id": agg_id,
+            "type": "variable_aggregator",
+            "title": "结果汇合",
+            "config": {},
+        })
+
+        cfg["error_strategy"] = "fail-branch"
+        step["config"] = cfg
+
+        new_edges = [e for e in new_edges if not (e.get("source") == sid and e.get("target") == primary_target)]
+        new_edges.append({"source": sid, "target": agg_id, "source_handle": "success-branch"})
+        new_edges.append({"source": sid, "target": fallback_llm_id, "source_handle": "fail-branch"})
+        new_edges.append({"source": fallback_llm_id, "target": agg_id})
+        new_edges.append({"source": agg_id, "target": primary_target})
+        warnings.append(f"为 {sid} 启用 fail-branch 并插入兜底链路（{fallback_llm_id}->{agg_id}->{primary_target}）")
+
+    spec["steps"] = steps
+    spec["edges"] = _sorted_edges(new_edges)
+    return warnings
+
+
+def normalize_workflow_spec_v2(spec: dict, requirement: dict | None = None) -> tuple[dict, list[str]]:
+    warnings: list[str] = []
+    normalized = copy.deepcopy(spec if isinstance(spec, dict) else {})
+    if not isinstance(normalized.get("steps"), list):
+        normalized["steps"] = []
+    if not isinstance(normalized.get("edges"), list):
+        normalized["edges"] = []
+
+    warnings.extend(_ensure_ifelse_branch_edges(normalized))
+    warnings.extend(_wrap_exec_node_with_fail_branch(normalized))
+    warnings.extend(_insert_variable_aggregators_for_conditional_merges(normalized))
+    normalized["edges"] = _sorted_edges(normalized.get("edges", []))
+    return normalized, warnings
+
+
 def llm_repair_workflow_spec_v2(spec: dict, errors: list[str], requirement: dict) -> dict:
     if not model_ready():
         raise ValueError("MODEL_UNAVAILABLE")
@@ -876,11 +1140,21 @@ def _score_candidate_v2(spec: dict, requirement: dict, validation: dict) -> floa
     if "branching" in caps:
         score += 8 if type_counts.get("ifelse", 0) > 0 else -6
 
+    if "branching" in caps:
+        score += min(int(type_counts.get("variable_aggregator", 0) or 0), 2) * 3
+
     unique_types = len([k for k, v in type_counts.items() if v > 0])
     score += min(unique_types, 6) * 2.5
     score += stats.get("non_llm_node_ratio", 0.0) * 20
     if stats.get("has_path_start_to_answer"):
         score += 15
+
+    if isinstance(spec, dict) and isinstance(spec.get("edges"), list):
+        fail_branch_edges = [
+            e for e in spec.get("edges", [])
+            if isinstance(e, dict) and str(e.get("source_handle") or "") in {"fail-branch", "success-branch"}
+        ]
+        score += min(len(fail_branch_edges), 4) * 1.2
 
     target = requirement.get("node_preferences", {}).get("target_node_count", 8)
     if isinstance(target, int):
@@ -968,24 +1242,27 @@ def analyze_with_llm_v2(user_input: str) -> dict:
 
         raw_spec = llm_plan_workflow_candidate_v2(requirement, temperature=temperatures[min(idx, len(temperatures) - 1)])
         fixed_spec, fix_warnings = deterministic_fix_workflow_spec_v2(raw_spec)
-        validation = validate_workflow_spec_v2(fixed_spec)
+        normalized_spec, normalize_warnings = normalize_workflow_spec_v2(fixed_spec, requirement)
+        validation = validate_workflow_spec_v2(normalized_spec)
 
         if not validation["ok"]:
             for _ in range(2):
-                repaired = llm_repair_workflow_spec_v2(fixed_spec, validation["errors"], requirement)
+                repaired = llm_repair_workflow_spec_v2(normalized_spec, validation["errors"], requirement)
                 fixed_spec, more_fix_warnings = deterministic_fix_workflow_spec_v2(repaired)
                 fix_warnings.extend(more_fix_warnings)
-                validation = validate_workflow_spec_v2(fixed_spec)
+                normalized_spec, more_normalize_warnings = normalize_workflow_spec_v2(fixed_spec, requirement)
+                normalize_warnings.extend(more_normalize_warnings)
+                validation = validate_workflow_spec_v2(normalized_spec)
                 repair_rounds += 1
                 if validation["ok"]:
                     break
 
-        validation["warnings"] = validation.get("warnings", []) + fix_warnings
-        score = _score_candidate_v2(fixed_spec, requirement, validation)
+        validation["warnings"] = validation.get("warnings", []) + fix_warnings + normalize_warnings
+        score = _score_candidate_v2(normalized_spec, requirement, validation)
 
         candidates.append({
             "id": candidate_id,
-            "spec": fixed_spec,
+            "spec": normalized_spec,
             "validation": validation,
             "score": score,
             "repair_rounds": repair_rounds,
@@ -2743,7 +3020,7 @@ def _find_latest_text_source(edges: list, step_type_map: dict, current_step_id: 
 
         previous_type = step_type_map.get(previous_step_id)
 
-        if previous_type in ("llm", "template", "knowledge_retrieval", "code", "tool"):
+        if previous_type in ("llm", "template", "knowledge_retrieval", "code", "tool", "parameter_extract", "variable_aggregator", "iteration", "loop"):
             return previous_step_id
 
         if previous_type == "ifelse":
@@ -2760,7 +3037,7 @@ def _find_latest_text_sources(edges: list, step_type_map: dict, current_step_id:
 
     for previous_step_id in previous_ids:
         previous_type = step_type_map.get(previous_step_id)
-        if previous_type in ("llm", "template", "knowledge_retrieval", "code", "tool"):
+        if previous_type in ("llm", "template", "knowledge_retrieval", "code", "tool", "parameter_extract", "variable_aggregator", "iteration", "loop"):
             valid_sources.append(previous_step_id)
 
     return valid_sources
@@ -2776,6 +3053,14 @@ def _resolve_prompt_input_var(step_type: str, step_id: str) -> str:
         return f"{{{{#{step_id}.result#}}}}"
     if step_type == "tool":
         return f"{{{{#{step_id}.body#}}}}"
+    if step_type == "parameter_extract":
+        return f"{{{{#{step_id}.text#}}}}"
+    if step_type == "variable_aggregator":
+        return f"{{{{#{step_id}.output#}}}}"
+    if step_type == "iteration":
+        return f"{{{{#{step_id}.text#}}}}"
+    if step_type == "loop":
+        return f"{{{{#{step_id}.text#}}}}"
     return ""
 
 
@@ -2854,6 +3139,14 @@ def _resolve_output_var(step_type: str, step_id: str) -> str:
         return f"{{{{#{step_id}.result#}}}}"
     if step_type == "tool":
         return f"{{{{#{step_id}.body#}}}}"
+    if step_type == "parameter_extract":
+        return f"{{{{#{step_id}.text#}}}}"
+    if step_type == "variable_aggregator":
+        return f"{{{{#{step_id}.output#}}}}"
+    if step_type == "iteration":
+        return f"{{{{#{step_id}.text#}}}}"
+    if step_type == "loop":
+        return f"{{{{#{step_id}.text#}}}}"
     return f"{{{{#{step_id}.text#}}}}"
 
 
@@ -2982,7 +3275,7 @@ def _normalize_branch_y_map(y_base: int) -> dict:
 def compile_workflow_spec_to_dify_yaml(spec: dict) -> str:
     """
     把通用 spec 编译成 Dify DSL
-    # 当前支持 start / llm / ifelse / template / answer 五类节点
+    当前支持 start / llm / ifelse / template / answer / knowledge_retrieval / code / tool 及若干扩展节点的编译映射
     """
     seed = load_dify_seed_template()
 
@@ -3138,8 +3431,20 @@ def compile_workflow_spec_to_dify_yaml(spec: dict) -> str:
             node["data"]["title"] = step_title
 
             previous_step_id = _find_previous_step_id(edges, step_id)
+            if not previous_step_id:
+                previous_step_id = _pick_default_target_id(spec) or "llm_generate"
             previous_step_type = step_type_map.get(previous_step_id, "llm")
-            previous_field = "output" if previous_step_type == "template" else "text"
+            previous_field = {
+                "template": "output",
+                "llm": "text",
+                "knowledge_retrieval": "result",
+                "code": "result",
+                "tool": "body",
+                "variable_aggregator": "output",
+                "parameter_extract": "text",
+                "iteration": "text",
+                "loop": "text",
+            }.get(previous_step_type, "text")
 
             scene = spec.get("scene", "generic")
             output_contract = spec.get("output_contract", {}) or {}
@@ -3202,6 +3507,8 @@ def compile_workflow_spec_to_dify_yaml(spec: dict) -> str:
             node["data"]["code"] = code_cfg["code"]
             node["data"]["variables"] = code_cfg["variables"]
             node["data"]["outputs"] = code_cfg["outputs"]
+            if isinstance(step.get("config"), dict) and step["config"].get("error_strategy"):
+                node["data"]["error_strategy"] = step["config"]["error_strategy"]
 
         elif step_type == "tool":
             node = copy.deepcopy(tool_node_seed)
@@ -3217,27 +3524,95 @@ def compile_workflow_spec_to_dify_yaml(spec: dict) -> str:
             node["data"]["headers"] = tool_cfg["headers"]
             node["data"]["body"] = tool_cfg["body"]
             node["data"]["variables"] = tool_cfg["variables"]
+            if isinstance(step.get("config"), dict) and step["config"].get("error_strategy"):
+                node["data"]["error_strategy"] = step["config"]["error_strategy"]
 
-        elif step_type == "parameter_extract":
-            node = copy.deepcopy(llm_seed)
+        elif step_type == "variable_aggregator":
+            node = copy.deepcopy(code_node_seed)
             node["id"] = step_id
             node["position"] = {"x": x_base + idx * x_gap, "y": node_y}
             node["positionAbsolute"] = {"x": x_base + idx * x_gap, "y": node_y}
 
             node["data"]["title"] = step_title
 
-            prompt_text = "这是一个参数提取代理节点。当前版本先用 LLM 代理表示，请提取任务参数并结构化表达。"
+            incoming_edges = [e for e in edges if isinstance(e, dict) and e.get("target") == step_id]
+            variables = []
+            arg_names = []
+            for i, e in enumerate(incoming_edges):
+                src = e.get("source")
+                if not src:
+                    continue
+                src_type = step_type_map.get(src, "llm")
+                src_field = {
+                    "template": "output",
+                    "llm": "text",
+                    "knowledge_retrieval": "result",
+                    "code": "result",
+                    "tool": "body",
+                    "variable_aggregator": "output",
+                    "parameter_extract": "text",
+                    "iteration": "text",
+                    "loop": "text",
+                }.get(src_type, "text")
+                arg = f"arg{i + 1}"
+                arg_names.append(arg)
+                variables.append({"variable": arg, "value_selector": [src, src_field]})
+
+            node["data"]["variables"] = variables
+            node["data"]["outputs"] = {"output": {"type": "string", "children": None}}
+
+            params = ", ".join([f"{name}: str = \"\"" for name in arg_names]) if arg_names else ""
+            lines = []
+            lines.append("import json")
+            lines.append("")
+            lines.append(f"def main({params}):")
+            lines.append("    values = []")
+            for name in arg_names:
+                lines.append(f"    values.append({name})")
+            lines.append("    for v in values:")
+            lines.append("        if v is None:")
+            lines.append("            continue")
+            lines.append("        if isinstance(v, str) and v.strip():")
+            lines.append("            return {\"output\": v}")
+            lines.append("        if not isinstance(v, str):")
+            lines.append("            try:")
+            lines.append("                s = json.dumps(v, ensure_ascii=False)")
+            lines.append("                if isinstance(s, str) and s.strip():")
+            lines.append("                    return {\"output\": s}")
+            lines.append("            except Exception:")
+            lines.append("                pass")
+            lines.append("    return {\"output\": \"\"}")
+
+            node["data"]["code_language"] = "python3"
+            node["data"]["code"] = "\n" + "\n".join(lines) + "\n"
+
+        elif step_type in {"parameter_extract", "iteration", "loop"}:
+            node = copy.deepcopy(llm_seed)
+            node["id"] = step_id
+            node["position"] = {"x": x_base + idx * x_gap, "y": node_y}
+            node["positionAbsolute"] = {"x": x_base + idx * x_gap, "y": node_y}
+
+            node["data"]["title"] = step_title
+            prompt_text = _build_llm_prompt(
+                step=step,
+                inputs=inputs,
+                edges=edges,
+                step_type_map=step_type_map,
+                current_step_id=step_id
+            )
+            if step_type == "parameter_extract":
+                cfg = step.get("config", {}) if isinstance(step.get("config"), dict) else {}
+                schema_text = json.dumps(cfg.get("schema", {}), ensure_ascii=False)
+                prompt_text = prompt_text + "\n\n" + f"请把关键信息提取为严格 JSON（只输出 JSON）：\n{schema_text}"
+            if step_type == "iteration":
+                prompt_text = prompt_text + "\n\n" + "请对输入中的数组/列表逐项处理，输出 JSON 数组（只输出 JSON）。"
+            if step_type == "loop":
+                prompt_text = prompt_text + "\n\n" + "请进行最多 3 轮自我改进：每轮先指出缺陷再给出改进版本。最终只输出最终版本。"
 
             if "prompt_template" in node["data"] and node["data"]["prompt_template"]:
                 node["data"]["prompt_template"][0]["text"] = prompt_text
             else:
-                node["data"]["prompt_template"] = [
-                    {
-                        "id": _new_id("prompt"),
-                        "role": "system",
-                        "text": prompt_text
-                    }
-                ]
+                node["data"]["prompt_template"] = [{"id": _new_id("prompt"), "role": "system", "text": prompt_text}]
 
         else:
             continue
@@ -3308,6 +3683,7 @@ def validate_compiled_dify_yaml(yaml_content: str) -> tuple[bool, str]:
         return False, "编译结果 graph.edges 非数组"
 
     ids = set()
+    nodes_by_id: dict[str, dict] = {}
     for idx, node in enumerate(nodes):
         if not isinstance(node, dict):
             return False, f"graph.nodes[{idx}] 非对象"
@@ -3315,12 +3691,29 @@ def validate_compiled_dify_yaml(yaml_content: str) -> tuple[bool, str]:
         if not node_id:
             return False, f"graph.nodes[{idx}] 缺少 id"
         ids.add(node_id)
+        if isinstance(node_id, str):
+            nodes_by_id[node_id] = node
 
     for idx, edge in enumerate(edges):
         if not isinstance(edge, dict):
             return False, f"graph.edges[{idx}] 非对象"
         if edge.get("source") not in ids or edge.get("target") not in ids:
             return False, f"graph.edges[{idx}] 引用了不存在节点"
+
+    outgoing: dict[str, list[dict]] = {}
+    for edge in edges:
+        if isinstance(edge, dict) and edge.get("source"):
+            outgoing.setdefault(edge["source"], []).append(edge)
+
+    for node_id, node in nodes_by_id.items():
+        data = node.get("data", {}) if isinstance(node, dict) else {}
+        if not isinstance(data, dict):
+            continue
+        if data.get("error_strategy") == "fail-branch":
+            outs = outgoing.get(node_id, [])
+            handles = {str(e.get("sourceHandle") or "source") for e in outs if isinstance(e, dict)}
+            if "success-branch" not in handles or "fail-branch" not in handles:
+                return False, f"节点 {node_id} error_strategy=fail-branch 但缺少 success/fail 分支连边"
 
     return True, ""
 
@@ -3329,6 +3722,9 @@ def _resolve_source_handle(source_step_type: str, edge_info: dict | None = None)
     if source_step_type == "ifelse":
         branch = (edge_info or {}).get("branch")
         return branch or "direct"
+    handle = (edge_info or {}).get("source_handle")
+    if handle:
+        return str(handle)
     return "source"
 
 def _resolve_target_handle(target_step_type: str) -> str:
@@ -3346,6 +3742,9 @@ def _to_dify_node_type(step_type: str) -> str:
         "code": "code",
         "tool": "http-request",
         "parameter_extract": "llm",
+        "variable_aggregator": "code",
+        "iteration": "llm",
+        "loop": "llm",
     }
     return mapping.get(step_type, "llm")
 

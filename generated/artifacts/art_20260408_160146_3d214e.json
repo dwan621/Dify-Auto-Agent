@@ -1,0 +1,222 @@
+{
+  "timestamp": "2026-04-08T16:01:46.541855",
+  "model_name": "deepseek-chat",
+  "provider": "deepseek",
+  "prompt_version": "v2.1",
+  "schema_version": "wf-spec.v2",
+  "requirement": {
+    "app_name": "多语言翻译工作流",
+    "description": "一个自动化的翻译流程，能够识别输入文本的语种，将其翻译成目标语言，进行质量校验，并格式化输出结果。",
+    "scene": "translation",
+    "user_goal": "将输入的文本准确、高质量地翻译成指定的目标语言，并提供格式化的翻译结果。",
+    "inputs": [
+      {
+        "name": "source_text",
+        "label": "源文本",
+        "type": "paragraph",
+        "required": true
+      },
+      {
+        "name": "target_language",
+        "label": "目标语言",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "output_contract": {
+      "translated_text": "翻译后的文本",
+      "detected_source_language": "检测到的源语言",
+      "quality_score": "质量评分（可选）",
+      "formatted_output": "格式化后的最终输出"
+    },
+    "capabilities": [
+      "intent_analysis",
+      "planning",
+      "generation",
+      "formatting"
+    ],
+    "node_preferences": {
+      "target_node_count": 5,
+      "need_private_kb": false,
+      "need_code_node": false,
+      "need_tools": false,
+      "need_branching": false
+    },
+    "runtime_config": {
+      "timeout": 30,
+      "max_retries": 2,
+      "model_tier": "deepseek-chat"
+    },
+    "constraints": []
+  },
+  "candidate_scores": [
+    {
+      "id": "cand_1",
+      "score": 73.8,
+      "ok": true,
+      "warnings": [],
+      "stats": {
+        "total_nodes": 6,
+        "type_counts": {
+          "start": 1,
+          "llm": 3,
+          "template": 1,
+          "answer": 1
+        },
+        "non_llm_node_ratio": 0.5,
+        "has_path_start_to_answer": true
+      },
+      "repair_rounds": 0
+    }
+  ],
+  "selected_candidate_id": "cand_1",
+  "selected_spec": {
+    "workflow_name": "多语言翻译工作流",
+    "description": "一个自动化的翻译流程，能够识别输入文本的语种，将其翻译成目标语言，进行质量校验，并格式化输出结果。",
+    "scene": "translation",
+    "inputs": [
+      {
+        "name": "source_text",
+        "label": "源文本",
+        "type": "paragraph",
+        "required": true
+      },
+      {
+        "name": "target_language",
+        "label": "目标语言",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "output_contract": {
+      "translated_text": "翻译后的文本",
+      "detected_source_language": "检测到的源语言",
+      "quality_score": "质量评分（可选）",
+      "formatted_output": "格式化后的最终输出"
+    },
+    "steps": [
+      {
+        "id": "start",
+        "type": "start",
+        "config": {}
+      },
+      {
+        "id": "detect_language",
+        "type": "llm",
+        "config": {
+          "prompt": "请分析以下文本并识别其语言。只返回语言名称，例如：中文、英语、日语、法语、西班牙语等。\n\n文本：{{source_text}}",
+          "model": "deepseek-chat",
+          "temperature": 0.1
+        }
+      },
+      {
+        "id": "translate_text",
+        "type": "llm",
+        "config": {
+          "prompt": "请将以下{{detected_source_language}}文本翻译成{{target_language}}。保持原文的风格和语气，确保翻译准确自然。\n\n原文：{{source_text}}\n\n翻译：",
+          "model": "deepseek-chat",
+          "temperature": 0.3
+        }
+      },
+      {
+        "id": "quality_check",
+        "type": "llm",
+        "config": {
+          "prompt": "请评估以下翻译的质量。考虑准确性、流畅性和风格一致性。\n\n原文（{{detected_source_language}}）：{{source_text}}\n\n翻译（{{target_language}}）：{{translated_text}}\n\n请给出1-10分的质量评分，并简要说明理由。格式：评分：X/10，理由：...",
+          "model": "deepseek-chat",
+          "temperature": 0.2
+        }
+      },
+      {
+        "id": "format_output",
+        "type": "template",
+        "config": {
+          "template": "翻译结果：\n\n源语言：{{detected_source_language}}\n目标语言：{{target_language}}\n\n原文：{{source_text}}\n\n翻译：{{translated_text}}\n\n{{quality_check_result}}"
+        }
+      },
+      {
+        "id": "answer",
+        "type": "answer",
+        "config": {}
+      }
+    ],
+    "edges": [
+      {
+        "source": "start",
+        "target": "detect_language"
+      },
+      {
+        "source": "detect_language",
+        "target": "translate_text"
+      },
+      {
+        "source": "translate_text",
+        "target": "quality_check"
+      },
+      {
+        "source": "quality_check",
+        "target": "format_output"
+      },
+      {
+        "source": "format_output",
+        "target": "answer"
+      }
+    ],
+    "meta": {
+      "planning_mode": "llm_v2",
+      "model": "deepseek-chat",
+      "provider": "deepseek",
+      "prompt_version": "v2.1",
+      "schema_version": "wf-spec.v2",
+      "score": 73.8,
+      "selected_candidate_id": "cand_1",
+      "complexity_level": "simple",
+      "candidate_count": 1
+    },
+    "requirement_meta": {
+      "app_name": "多语言翻译工作流",
+      "description": "一个自动化的翻译流程，能够识别输入文本的语种，将其翻译成目标语言，进行质量校验，并格式化输出结果。",
+      "scene": "translation",
+      "user_goal": "将输入的文本准确、高质量地翻译成指定的目标语言，并提供格式化的翻译结果。",
+      "inputs": [
+        {
+          "name": "source_text",
+          "label": "源文本",
+          "type": "paragraph",
+          "required": true
+        },
+        {
+          "name": "target_language",
+          "label": "目标语言",
+          "type": "text",
+          "required": true
+        }
+      ],
+      "output_contract": {
+        "translated_text": "翻译后的文本",
+        "detected_source_language": "检测到的源语言",
+        "quality_score": "质量评分（可选）",
+        "formatted_output": "格式化后的最终输出"
+      },
+      "capabilities": [
+        "intent_analysis",
+        "planning",
+        "generation",
+        "formatting"
+      ],
+      "node_preferences": {
+        "target_node_count": 5,
+        "need_private_kb": false,
+        "need_code_node": false,
+        "need_tools": false,
+        "need_branching": false
+      },
+      "runtime_config": {
+        "timeout": 30,
+        "max_retries": 2,
+        "model_tier": "deepseek-chat"
+      },
+      "constraints": []
+    }
+  }
+}

@@ -186,22 +186,17 @@ function renderCandidateList(candidates = [], selectedId = "") {
 
   candidates.forEach((cand) => {
     const li = document.createElement("li");
-    li.className = "list__item";
+    li.className = `list__item${cand.id === selectedId ? " list__item--selected" : ""}`;
     const ratio = typeof cand.non_llm_node_ratio === "number" ? cand.non_llm_node_ratio : 0;
     const head = document.createElement("div");
-    head.style.display = "flex";
-    head.style.alignItems = "center";
-    head.style.justifyContent = "space-between";
-    head.style.gap = "10px";
+    head.className = "candidate-head";
 
     const left = document.createElement("div");
-    left.style.display = "flex";
-    left.style.alignItems = "center";
-    left.style.gap = "8px";
+    left.className = "candidate-left";
 
     const id = document.createElement("span");
     id.textContent = cand.id;
-    id.className = "mono";
+    id.className = "mono candidate-id";
     left.appendChild(id);
 
     if (cand.id === selectedId) {
@@ -212,7 +207,7 @@ function renderCandidateList(candidates = [], selectedId = "") {
     }
 
     const right = document.createElement("div");
-    right.className = "mono muted";
+    right.className = "candidate-right mono muted";
     right.textContent = `score=${cand.score} | non-llm=${ratio}`;
 
     head.appendChild(left);
@@ -322,7 +317,7 @@ function renderNodeEditor(spec) {
       promptArea.value = step.prompt || "";
       promptArea.placeholder = "节点提示词";
       promptArea.className = "textarea";
-      promptArea.addEventListener("change", () => {
+      promptArea.addEventListener("input", () => {
         step.prompt = promptArea.value;
       });
       fields.appendChild(promptArea);
@@ -333,16 +328,27 @@ function renderNodeEditor(spec) {
       configArea.value = JSON.stringify(step.config, null, 2);
       configArea.placeholder = "节点配置 JSON";
       configArea.className = "textarea mono";
+      const configHint = document.createElement("div");
+      configHint.className = "field__hint";
+      configHint.textContent = "修改后离开输入框会保存。";
+
+      configArea.addEventListener("input", () => {
+        configHint.textContent = "修改后离开输入框会保存。";
+      });
+
       configArea.addEventListener("change", () => {
         try {
           const parsed = JSON.parse(configArea.value || "{}");
           step.config = parsed;
           setInlineError(fields, "");
+          configHint.textContent = "已保存。";
         } catch (err) {
           setInlineError(fields, "节点配置 JSON 格式错误，未保存。请修正后再离开输入框。");
+          configHint.textContent = "未保存：JSON 暂不可解析。";
         }
       });
       fields.appendChild(configArea);
+      fields.appendChild(configHint);
     }
 
     details.appendChild(fields);
@@ -563,6 +569,34 @@ async function generateYaml() {
   }
 }
 
+async function copyTextToClipboard(text) {
+  if (!text) {
+    return false;
+  }
+  try {
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (error) {
+  }
+  try {
+    const el = document.createElement("textarea");
+    el.value = text;
+    el.setAttribute("readonly", "true");
+    el.style.position = "fixed";
+    el.style.left = "-9999px";
+    el.style.top = "0";
+    document.body.appendChild(el);
+    el.select();
+    const ok = document.execCommand("copy");
+    el.remove();
+    return !!ok;
+  } catch (error) {
+    return false;
+  }
+}
+
 async function validateSpecOnly() {
   if (!currentWorkflowSpec) {
     setResultMessage("暂无可校验的 Spec。先完成“分析需求”。");
@@ -646,8 +680,8 @@ function bindEvents() {
     if (!yamlText) {
       return;
     }
-    await navigator.clipboard.writeText(yamlText);
-    setResultMessage("YAML 已复制到剪贴板");
+    const ok = await copyTextToClipboard(yamlText);
+    setResultMessage(ok ? "YAML 已复制到剪贴板" : "复制失败：请手动选择 YAML 内容并复制。");
   });
 
   const copyTop = $("copyYamlTopBtn");
@@ -657,8 +691,8 @@ function bindEvents() {
       if (!yamlText) {
         return;
       }
-      await navigator.clipboard.writeText(yamlText);
-      setResultMessage("YAML 已复制到剪贴板");
+      const ok = await copyTextToClipboard(yamlText);
+      setResultMessage(ok ? "YAML 已复制到剪贴板" : "复制失败：请手动选择 YAML 内容并复制。");
     });
   }
 

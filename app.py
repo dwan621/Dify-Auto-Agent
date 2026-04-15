@@ -556,18 +556,33 @@ def llm_plan_workflow_candidate_v2(requirement: dict, temperature: float = 0.25)
 workflow_name, description, scene, inputs, output_contract, steps, edges
 
 约束：
-1) 必须包含一个 start 节点和一个 answer 节点
-2) edges 里的 source/target 必须引用 steps 里的 id
+1) 必须包含一个 start 节点和一个 answer 节点。图必须连通，且逻辑严谨、符合实际业务需求。
+2) edges 里的 source/target 必须引用 steps 里的 id。避免生成无意义的悬空节点。
 2.1) ifelse 的分支连边用 edges[].branch 表达，branch 值应与 steps[].config.cases[].id 对齐
-2.2) code/tool 如需失败兜底，可设置 steps[].config.error_strategy="fail-branch"，并在 edges 中用 edges[].source_handle 指定 success-branch / fail-branch
+2.2) code/tool 如需失败兜底，可设置 steps[].config.error_strategy="fail-branch"，并在 edges 中用 edges[].source_handle 指定 success-branch / fail-branch。⚠️警告：请克制使用 fail-branch，仅在极核心的风险节点使用，避免图结构过度臃肿！
 2.3) 若步骤中包含 llm_plan 且后面存在 ifelse_route，请让 llm_plan 输出可稳定匹配的 ROUTE=knowledge/compute/tool/direct 标记
-3) steps 至少 5 个，最多 {MAX_NODE_LIMIT} 个
+3) steps 至少 3 个，最多 {MAX_NODE_LIMIT} 个。请保持拓扑结构简单清晰。
 4) 如使用 tool 节点，config.url 只能是以下主机之一：{sorted(list(SAFE_TOOL_HOSTS))}
 5) tool 节点 config 建议包含：method/url/headers/body/variables
 6) code 节点 config 建议包含：language/script/example_key/variables
 7) code.example_key 可选值：{sorted(list(CODE_TEMPLATE_LIBRARY.keys()))}
-8) 不要把所有逻辑都压成 llm，优先按能力使用 knowledge_retrieval / code / tool / ifelse
-9) 当存在多分支或 fail-branch 兜底时，使用 variable_aggregator 做汇合，再连接到后续节点
+8) 不要把所有逻辑都压成 llm，合理分配给 knowledge_retrieval / code / tool / ifelse。
+9) 当存在多分支汇合时，使用 variable_aggregator 做汇合，再连接到后续节点。
+10) 当使用 code 节点时，必须通过 variables 声明前置依赖，并在 script 中引用。
+
+【节点与连边配置格式示例 (仅为局部片段，请根据实际需求生成完整流程)】:
+{{
+  "workflow_name": "根据需求命名",
+  "steps": [
+    {{"id": "start", "type": "start", "title": "开始"}},
+    {{"id": "code_1", "type": "code", "title": "数据处理", "config": {{"variables": [{{"variable": "input", "value_selector": ["start", "input"]}}]}}}},
+    {{"id": "ifelse_1", "type": "ifelse", "title": "分支判断", "config": {{"cases": [{{"id": "case_1", "logical_operator": "and", "conditions": []}}]}}}}
+  ],
+  "edges": [
+    {{"source": "start", "target": "code_1"}},
+    {{"source": "code_1", "target": "ifelse_1"}}
+  ]
+}}
 
 requirement:
 {json.dumps(requirement, ensure_ascii=False)}
@@ -1029,6 +1044,9 @@ def _ensure_ifelse_branch_edges(spec: dict, allow_autofix: bool = False) -> list
 
         if not case_ids:
             continue
+            
+        if "false" not in case_ids:
+            case_ids.append("false")
 
         outgoing = [e for e in edges if isinstance(e, dict) and e.get("source") == sid]
         existing_branches = {str(e.get("branch")) for e in outgoing if e.get("branch")}
@@ -1142,7 +1160,7 @@ def _wrap_exec_node_with_fail_branch(spec: dict) -> list[str]:
             continue
         cfg = step.get("config", {}) if isinstance(step.get("config"), dict) else {}
         error_strategy = cfg.get("error_strategy")
-        if error_strategy and error_strategy != "fail-branch":
+        if error_strategy != "fail-branch":
             continue
         outs = outgoing.get(sid, [])
         if not outs:
@@ -1152,7 +1170,8 @@ def _wrap_exec_node_with_fail_branch(spec: dict) -> list[str]:
             continue
         if error_strategy == "fail-branch":
             handles = {str(e.get("source_handle") or e.get("branch") or "source") for e in outs if isinstance(e, dict)}
-            if "success-branch" in handles and "fail-branch" in handles:
+            if "success-branch" in handles or "fail-branch" in handles:
+                # 只要 LLM 已经生成了任何相关的分支 handle，我们就不再自动包装，避免冲突
                 continue
         target_ids = [e.get("target") for e in outs if e.get("target")]
         if not target_ids:
@@ -1195,12 +1214,85 @@ def _wrap_exec_node_with_fail_branch(spec: dict) -> list[str]:
         new_edges.append({"source": sid, "target": fallback_llm_id, "source_handle": "fail-branch"})
         new_edges.append({"source": fallback_llm_id, "target": agg_id})
         new_edges.append({"source": agg_id, "target": primary_target})
+        
+        # Remove any other unhandled edges from sid, and route them from agg_id instead
+        other_unhandled_outs = [e for e in new_edges if e.get("source") == sid and not e.get("source_handle")]
+        new_edges = [e for e in new_edges if e not in other_unhandled_outs]
+        for oe in other_unhandled_outs:
+            new_edges.append({"source": agg_id, "target": oe.get("target")})
+            
+        print(f"DEBUG: other_unhandled_outs for {sid}: {other_unhandled_outs}", flush=True)
+
         warnings.append(f"为 {sid} 启用 fail-branch 并插入兜底链路（{fallback_llm_id}->{agg_id}->{primary_target}）")
 
     spec["steps"] = steps
     spec["edges"] = _sorted_edges(new_edges)
     return warnings
 
+
+def _prune_redundant_nodes(spec: dict) -> list[str]:
+    warnings: list[str] = []
+    steps = spec.get("steps", [])
+    edges = spec.get("edges", [])
+    if not isinstance(steps, list) or not isinstance(edges, list):
+        return warnings
+
+    step_by_id = {s.get("id"): s for s in steps if isinstance(s, dict) and s.get("id")}
+    incoming: dict[str, list[dict]] = {}
+    outgoing: dict[str, list[dict]] = {}
+
+    for e in edges:
+        if not isinstance(e, dict):
+            continue
+        incoming.setdefault(e.get("target"), []).append(e)
+        outgoing.setdefault(e.get("source"), []).append(e)
+
+    nodes_to_remove = set()
+    for step in steps:
+        if not isinstance(step, dict):
+            continue
+        sid = step.get("id")
+        if not sid or step.get("type") != "llm":
+            continue
+
+        prompt = step.get("prompt", "").strip()
+        # If it's a simple passthrough node
+        if len(prompt) < 15 and ("透传" in prompt or "直接输出" in prompt or prompt == "请根据用户输入完成任务。"):
+            inc = incoming.get(sid, [])
+            out = outgoing.get(sid, [])
+            if len(inc) == 1 and len(out) == 1:
+                # We can safely prune this node
+                nodes_to_remove.add(sid)
+
+    if not nodes_to_remove:
+        return warnings
+
+    new_steps = [s for s in steps if s.get("id") not in nodes_to_remove]
+    new_edges = []
+    for e in edges:
+        if not isinstance(e, dict):
+            continue
+        if e.get("source") in nodes_to_remove or e.get("target") in nodes_to_remove:
+            continue
+        new_edges.append(e)
+
+    for sid in nodes_to_remove:
+        inc = incoming.get(sid)[0]
+        out = outgoing.get(sid)[0]
+        new_edge = {
+            "source": inc.get("source"),
+            "target": out.get("target")
+        }
+        if inc.get("branch"):
+            new_edge["branch"] = inc.get("branch")
+        if inc.get("source_handle"):
+            new_edge["source_handle"] = inc.get("source_handle")
+        new_edges.append(new_edge)
+        warnings.append(f"已修剪冗余透传节点: {sid}")
+
+    spec["steps"] = new_steps
+    spec["edges"] = _sorted_edges(new_edges)
+    return warnings
 
 def normalize_workflow_spec_v2(spec: dict, requirement: dict | None = None) -> tuple[dict, list[str]]:
     warnings: list[str] = []
@@ -1215,6 +1307,7 @@ def normalize_workflow_spec_v2(spec: dict, requirement: dict | None = None) -> t
         runtime_cfg = requirement.get("runtime_config", {})
     allow_autofix_ifelse = bool(runtime_cfg.get("allow_autofix_ifelse", DEFAULT_ALLOW_AUTOFIX_IFELSE))
 
+    warnings.extend(_prune_redundant_nodes(normalized))
     warnings.extend(_normalize_edge_semantics(normalized))
     warnings.extend(_ensure_ifelse_branch_edges(normalized, allow_autofix=allow_autofix_ifelse))
     warnings.extend(_wrap_exec_node_with_fail_branch(normalized))
@@ -1277,7 +1370,7 @@ def _score_candidate_v2(spec: dict, requirement: dict, validation: dict) -> floa
 
     unique_types = len([k for k, v in type_counts.items() if v > 0])
     score += min(unique_types, 6) * 2.5
-    score += stats.get("non_llm_node_ratio", 0.0) * 20
+    score += stats.get("non_llm_node_ratio", 0.0) * 10
     if stats.get("has_path_start_to_answer"):
         score += 15
 
@@ -1286,7 +1379,7 @@ def _score_candidate_v2(spec: dict, requirement: dict, validation: dict) -> floa
             e for e in spec.get("edges", [])
             if isinstance(e, dict) and str(e.get("source_handle") or "") in {"fail-branch", "success-branch"}
         ]
-        score += min(len(fail_branch_edges), 4) * 1.2
+        score += min(len(fail_branch_edges), 2) * 0.5
 
     target = requirement.get("node_preferences", {}).get("target_node_count", 8)
     if isinstance(target, int):
@@ -1812,11 +1905,12 @@ def _extract_selection_features(requirement: dict) -> dict[str, bool]:
     for c in requirement.get("constraints", []) if isinstance(requirement.get("constraints"), list) else []:
         text_parts.append(str(c))
     joined = " ".join(text_parts).lower()
+    caps = requirement.get("capabilities", []) if isinstance(requirement.get("capabilities"), list) else []
     return {
-        "mentions_kb": any(k in joined for k in ["知识库", "文档", "资料", "检索", "内部规范", "reference", "retrieve"]),
-        "mentions_tool": any(k in joined for k in ["接口", "api", "http", "实时", "网页", "抓取", "web"]),
-        "mentions_code": any(k in joined for k in ["计算", "转换", "清洗", "解析", "json", "yaml", "正则", "统计", "代码"]),
-        "needs_routing": any(k in joined for k in ["分支", "路由", "条件", "if", "switch", "多路径"]),
+        "mentions_kb": ("retrieval" in caps or "private_kb" in caps) or any(k in joined for k in ["知识库", "文档", "资料", "检索", "内部规范", "reference", "retrieve"]),
+        "mentions_tool": ("tool_call" in caps) or any(k in joined for k in ["接口", "api", "http", "实时", "网页", "抓取", "web"]),
+        "mentions_code": ("code_execution" in caps) or any(k in joined for k in ["计算", "转换", "清洗", "解析", "json", "yaml", "正则", "统计", "代码"]),
+        "needs_routing": ("branching" in caps) or any(k in joined for k in ["分支", "路由", "条件", "if", "switch", "多路径"]),
     }
 
 
@@ -1861,6 +1955,16 @@ def choose_execution_nodes(
         score_map["code_exec"] += 1.5
     if features["mentions_tool"]:
         score_map["tool_call"] += 1.5
+
+    scene = requirement.get("scene", "generic") if requirement else "generic"
+    if scene == "qa":
+        score_map["kb_retrieval"] += 3.0
+        score_map["tool_call"] += 1.0
+    elif scene in ["data_analysis", "summary"]:
+        score_map["code_exec"] += 3.0
+        score_map["tool_call"] += 1.0
+    elif scene == "web_summary":
+        score_map["tool_call"] += 3.0
 
     priority = {"kb_retrieval": 0, "code_exec": 1, "tool_call": 2}
     ranked = sorted(candidates, key=lambda n: (-score_map.get(n, 0), priority.get(n, 99)))
@@ -2260,19 +2364,26 @@ def build_output_template(scene: str, output_contract: dict) -> str:
     return "\n".join(lines).strip()
 
 
-def enrich_spec_to_multistage(spec: dict) -> dict:
+def enrich_spec_to_multistage(spec: dict, complexity: str = "normal") -> dict:
     steps = spec.get("steps", [])
     llm_steps = [s for s in steps if s.get("type") == "llm"]
     current_edges = spec.get("edges", [])
 
-    expected_step_ids = ["start", "llm_intent", "llm_plan", "llm_generate", "llm_review", "answer"]
-    expected_edges = [
-        {"source": "start", "target": "llm_intent"},
-        {"source": "llm_intent", "target": "llm_plan"},
-        {"source": "llm_plan", "target": "llm_generate"},
-        {"source": "llm_generate", "target": "llm_review"},
-        {"source": "llm_review", "target": "answer"}
-    ]
+    if complexity == "simple":
+        expected_step_ids = ["start", "llm_generate", "answer"]
+        expected_edges = [
+            {"source": "start", "target": "llm_generate"},
+            {"source": "llm_generate", "target": "answer"}
+        ]
+    else:
+        expected_step_ids = ["start", "llm_intent", "llm_plan", "llm_generate", "llm_review", "answer"]
+        expected_edges = [
+            {"source": "start", "target": "llm_intent"},
+            {"source": "llm_intent", "target": "llm_plan"},
+            {"source": "llm_plan", "target": "llm_generate"},
+            {"source": "llm_generate", "target": "llm_review"},
+            {"source": "llm_review", "target": "answer"}
+        ]
 
     current_step_ids = [s.get("id") for s in steps]
     edge_pairs = {(e.get("source"), e.get("target")) for e in current_edges}
@@ -2295,34 +2406,46 @@ def enrich_spec_to_multistage(spec: dict) -> dict:
     if not main_prompt:
         main_prompt = "请根据用户输入完成任务。"
 
-    spec["steps"] = [
-        {"id": "start", "type": "start", "title": "开始"},
-        {
-            "id": "llm_intent",
-            "type": "llm",
-            "title": "需求理解",
-            "prompt": "请先理解用户需求，提取任务目标、输入变量、输出形式和关键约束。"
-        },
-        {
-            "id": "llm_plan",
-            "type": "llm",
-            "title": "执行规划",
-            "prompt": "请基于需求理解结果，规划最合适的执行步骤、输出结构和注意事项。"
-        },
-        {
-            "id": "llm_generate",
-            "type": "llm",
-            "title": "核心生成",
-            "prompt": main_prompt
-        },
-        {
-            "id": "llm_review",
-            "type": "llm",
-            "title": "结果优化",
-            "prompt": "请检查上一步结果是否完整、清晰、可直接交付，并输出最终优化版本。"
-        },
-        {"id": "answer", "type": "answer", "title": "直接回复"}
-    ]
+    if complexity == "simple":
+        spec["steps"] = [
+            {"id": "start", "type": "start", "title": "开始"},
+            {
+                "id": "llm_generate",
+                "type": "llm",
+                "title": "核心生成",
+                "prompt": main_prompt
+            },
+            {"id": "answer", "type": "answer", "title": "直接回复"}
+        ]
+    else:
+        spec["steps"] = [
+            {"id": "start", "type": "start", "title": "开始"},
+            {
+                "id": "llm_intent",
+                "type": "llm",
+                "title": "需求理解",
+                "prompt": "请先理解用户需求，提取任务目标、输入变量、输出形式和关键约束。"
+            },
+            {
+                "id": "llm_plan",
+                "type": "llm",
+                "title": "执行规划",
+                "prompt": "请基于需求理解结果，规划最合适的执行步骤、输出结构和注意事项。"
+            },
+            {
+                "id": "llm_generate",
+                "type": "llm",
+                "title": "核心生成",
+                "prompt": main_prompt
+            },
+            {
+                "id": "llm_review",
+                "type": "llm",
+                "title": "结果优化",
+                "prompt": "请检查上一步结果是否完整、清晰、可直接交付，并输出最终优化版本。"
+            },
+            {"id": "answer", "type": "answer", "title": "直接回复"}
+        ]
 
     spec["edges"] = expected_edges
     return spec
@@ -3280,12 +3403,18 @@ def _build_llm_prompt(
     previous_source_ids = _find_latest_text_sources(edges, step_type_map, current_step_id)
 
     if previous_source_ids:
-        prev_block.append("上游节点输出结果：")
         for previous_source_id in previous_source_ids:
             previous_type = step_type_map.get(previous_source_id, "llm")
             previous_var = _resolve_prompt_input_var(previous_type, previous_source_id)
             if previous_var:
-                prev_block.append(f"- {previous_source_id}: {previous_var}")
+                if previous_type == "knowledge_retrieval":
+                    prev_block.append(f"【背景知识（来自知识库）】:\n- {previous_source_id}: {previous_var}")
+                elif previous_type == "tool":
+                    prev_block.append(f"【工具调用结果】:\n- {previous_source_id}: {previous_var}")
+                elif previous_type == "code":
+                    prev_block.append(f"【代码计算/处理结果】:\n- {previous_source_id}: {previous_var}")
+                else:
+                    prev_block.append(f"【上游节点输出结果】:\n- {previous_source_id}: {previous_var}")
 
     final_prompt = prompt
     if input_block:

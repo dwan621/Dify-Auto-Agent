@@ -1,0 +1,631 @@
+{
+  "timestamp": "2026-04-15T14:26:07.414713",
+  "model_name": "deepseek-chat",
+  "provider": "deepseek",
+  "prompt_version": "v2.1",
+  "schema_version": "wf-spec.v2",
+  "requirement": {
+    "app_name": "自动化数据处理与监控工作流",
+    "description": "一个用于自动化处理每日CSV日志文件的完整工作流。它从FTP服务器获取原始数据，进行清洗、转换、地理位置补全，然后写入数据库。根据业务规则判断风险，触发告警或生成报表，最后汇总所有日志和状态回传至监控平台。",
+    "scene": "generic",
+    "user_goal": "自动化完成每日日志数据的端到端处理、存储、风险监控与结果上报，确保流程可靠、可监控且支持异常恢复。",
+    "inputs": [
+      {
+        "name": "ftp_config",
+        "label": "FTP服务器配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "api_key",
+        "label": "地理位置API密钥",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "db_connection",
+        "label": "云数据库连接字符串",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "alert_recipients",
+        "label": "告警邮件接收人",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "monitoring_webhook",
+        "label": "监控平台Webhook地址",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "output_contract": {
+      "final_status": "string (SUCCESS/FAILED)",
+      "processed_record_count": "integer",
+      "high_risk_alert_triggered": "boolean",
+      "report_generated": "boolean",
+      "execution_log_summary": "string",
+      "timestamp": "string (ISO 8601)"
+    },
+    "capabilities": [
+      "input_check",
+      "planning",
+      "tool_call",
+      "branching",
+      "generation",
+      "formatting"
+    ],
+    "node_preferences": {
+      "target_node_count": 8,
+      "need_private_kb": false,
+      "need_code_node": true,
+      "need_tools": true,
+      "need_branching": true
+    },
+    "runtime_config": {
+      "time_trigger": "0 2 * * *",
+      "error_handling": "catch_and_log",
+      "resume_from_failure": true,
+      "execution_timeout": "3600",
+      "model_tier": "deepseek-chat"
+    },
+    "constraints": []
+  },
+  "candidate_scores": [
+    {
+      "id": "cand_1",
+      "score": 84.134,
+      "ok": true,
+      "warnings": [
+        "工具节点 fetch_csv_from_ftp url 已重写为白名单地址",
+        "工具节点 enrich_with_geolocation url 已重写为白名单地址",
+        "工具节点 enrich_with_geolocation headers 含敏感字段，已清空",
+        "工具节点 write_to_database url 已重写为白名单地址",
+        "工具节点 send_to_monitoring url 已重写为白名单地址",
+        "为 input_validation 启用 fail-branch 并插入兜底链路（llm_fallback_8faf76ce->agg_2410201c->fetch_csv_from_ftp）",
+        "为 fetch_csv_from_ftp 启用 fail-branch 并插入兜底链路（llm_fallback_494fb862->agg_33ce8ef8->aggregate_results）",
+        "为 clean_csv_data 启用 fail-branch 并插入兜底链路（llm_fallback_63457332->agg_6a307c6b->enrich_with_geolocation）",
+        "为 enrich_with_geolocation 启用 fail-branch 并插入兜底链路（llm_fallback_12b5a5a2->agg_90b80ab6->aggregate_results）",
+        "为 write_to_database 启用 fail-branch 并插入兜底链路（llm_fallback_15e851ae->agg_ddcd09d3->aggregate_results）",
+        "为 send_to_monitoring 启用 fail-branch 并插入兜底链路（llm_fallback_ba447137->agg_4ec8893e->answer）"
+      ],
+      "stats": {
+        "total_nodes": 24,
+        "type_counts": {
+          "start": 1,
+          "code": 2,
+          "tool": 4,
+          "ifelse": 1,
+          "llm": 8,
+          "variable_aggregator": 7,
+          "answer": 1
+        },
+        "non_llm_node_ratio": 0.6667,
+        "has_path_start_to_answer": true
+      },
+      "repair_rounds": 0
+    }
+  ],
+  "selected_candidate_id": "cand_1",
+  "selected_spec": {
+    "workflow_name": "自动化数据处理与监控工作流",
+    "description": "一个用于自动化处理每日CSV日志文件的完整工作流。它从FTP服务器获取原始数据，进行清洗、转换、地理位置补全，然后写入数据库。根据业务规则判断风险，触发告警或生成报表，最后汇总所有日志和状态回传至监控平台。",
+    "scene": "generic",
+    "inputs": [
+      {
+        "name": "ftp_config",
+        "label": "FTP服务器配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "api_key",
+        "label": "地理位置API密钥",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "db_connection",
+        "label": "云数据库连接字符串",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "alert_recipients",
+        "label": "告警邮件接收人",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "monitoring_webhook",
+        "label": "监控平台Webhook地址",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "output_contract": {
+      "final_status": "string (SUCCESS/FAILED)",
+      "processed_record_count": "integer",
+      "high_risk_alert_triggered": "boolean",
+      "report_generated": "boolean",
+      "execution_log_summary": "string",
+      "timestamp": "string (ISO 8601)"
+    },
+    "steps": [
+      {
+        "id": "start",
+        "type": "start",
+        "config": {}
+      },
+      {
+        "id": "input_validation",
+        "type": "code",
+        "config": {
+          "language": "python",
+          "script": "import json\ninputs = json.loads(inputs)\nrequired = ['ftp_config', 'api_key', 'db_connection', 'monitoring_webhook']\nmissing = [r for r in required if not inputs.get(r)]\nif missing:\n    raise ValueError(f'Missing required inputs: {missing}')\nreturn {'valid': True, 'message': 'Input validation passed'}",
+          "example_key": "parse_json",
+          "variables": {
+            "inputs": "{{inputs}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "fetch_csv_from_ftp",
+        "type": "tool",
+        "config": {
+          "method": "get",
+          "url": "https://httpbin.org/get",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "ftp_config": "{{ftp_config}}",
+            "action": "fetch_latest_csv"
+          },
+          "variables": {
+            "ftp_config": "{{ftp_config}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "clean_csv_data",
+        "type": "code",
+        "config": {
+          "language": "python",
+          "script": "import pandas as pd\nimport json\nraw_data = json.loads(inputs['fetch_csv_from_ftp'])\ncsv_content = raw_data.get('csv_content', '')\n# Simulate cleaning\ndf = pd.read_csv(pd.compat.StringIO(csv_content))\ndf = df.dropna()\ndf = df.drop_duplicates()\ncleaned = df.to_dict('records')\nreturn {'cleaned_data': cleaned, 'record_count': len(cleaned)}",
+          "example_key": "clean_text",
+          "variables": {
+            "fetch_csv_from_ftp": "{{fetch_csv_from_ftp}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "enrich_with_geolocation",
+        "type": "tool",
+        "config": {
+          "method": "post",
+          "url": "https://httpbin.org/get",
+          "headers": "",
+          "body": {
+            "data": "{{clean_csv_data.cleaned_data}}",
+            "api_key": "{{api_key}}"
+          },
+          "variables": {
+            "clean_csv_data.cleaned_data": "{{clean_csv_data.cleaned_data}}",
+            "api_key": "{{api_key}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "write_to_database",
+        "type": "tool",
+        "config": {
+          "method": "post",
+          "url": "https://httpbin.org/get",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "db_connection": "{{db_connection}}",
+            "data": "{{enrich_with_geolocation}}"
+          },
+          "variables": {
+            "db_connection": "{{db_connection}}",
+            "enrich_with_geolocation": "{{enrich_with_geolocation}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "risk_assessment",
+        "type": "ifelse",
+        "config": {
+          "cases": [
+            {
+              "id": "high_risk",
+              "condition": "{{write_to_database.record_count}} > 1000 or {{write_to_database.has_anomaly}} == true"
+            },
+            {
+              "id": "normal",
+              "condition": "default"
+            }
+          ]
+        }
+      },
+      {
+        "id": "trigger_alert",
+        "type": "llm",
+        "config": {
+          "prompt": "Generate an alert email for high-risk situation. Processed records: {{write_to_database.record_count}}. Recipients: {{alert_recipients}}. Include timestamp and summary.",
+          "variables": {
+            "write_to_database.record_count": "{{write_to_database.record_count}}",
+            "alert_recipients": "{{alert_recipients}}"
+          }
+        }
+      },
+      {
+        "id": "generate_report",
+        "type": "llm",
+        "config": {
+          "prompt": "Generate a daily processing report. Records processed: {{write_to_database.record_count}}. Status: normal. Include summary and recommendations.",
+          "variables": {
+            "write_to_database.record_count": "{{write_to_database.record_count}}"
+          }
+        }
+      },
+      {
+        "id": "aggregate_results",
+        "type": "variable_aggregator",
+        "config": {
+          "variables": {
+            "processed_record_count": "{{write_to_database.record_count}}",
+            "high_risk_alert_triggered": "{{risk_assessment.branch == 'high_risk'}}",
+            "report_generated": "true",
+            "execution_log_summary": "Daily CSV processing completed with {{write_to_database.record_count}} records."
+          }
+        }
+      },
+      {
+        "id": "send_to_monitoring",
+        "type": "tool",
+        "config": {
+          "method": "post",
+          "url": "https://httpbin.org/get",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "final_status": "SUCCESS",
+            "processed_record_count": "{{aggregate_results.processed_record_count}}",
+            "high_risk_alert_triggered": "{{aggregate_results.high_risk_alert_triggered}}",
+            "report_generated": "{{aggregate_results.report_generated}}",
+            "execution_log_summary": "{{aggregate_results.execution_log_summary}}",
+            "timestamp": "{{timestamp}}"
+          },
+          "variables": {
+            "monitoring_webhook": "{{monitoring_webhook}}",
+            "aggregate_results.processed_record_count": "{{aggregate_results.processed_record_count}}",
+            "aggregate_results.high_risk_alert_triggered": "{{aggregate_results.high_risk_alert_triggered}}",
+            "aggregate_results.report_generated": "{{aggregate_results.report_generated}}",
+            "aggregate_results.execution_log_summary": "{{aggregate_results.execution_log_summary}}",
+            "timestamp": "{{timestamp}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "answer",
+        "type": "answer",
+        "config": {
+          "answer": "Workflow completed. Final status: SUCCESS. Processed {{aggregate_results.processed_record_count}} records. High risk alert triggered: {{aggregate_results.high_risk_alert_triggered}}. Report generated: {{aggregate_results.report_generated}}."
+        }
+      },
+      {
+        "id": "llm_fallback_8faf76ce",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_2410201c",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "llm_fallback_494fb862",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_33ce8ef8",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "llm_fallback_63457332",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_6a307c6b",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "llm_fallback_12b5a5a2",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_90b80ab6",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "llm_fallback_15e851ae",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_ddcd09d3",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "llm_fallback_ba447137",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_4ec8893e",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      }
+    ],
+    "edges": [
+      {
+        "source": "agg_2410201c",
+        "target": "fetch_csv_from_ftp"
+      },
+      {
+        "source": "agg_33ce8ef8",
+        "target": "aggregate_results"
+      },
+      {
+        "source": "agg_4ec8893e",
+        "target": "answer"
+      },
+      {
+        "source": "agg_6a307c6b",
+        "target": "enrich_with_geolocation"
+      },
+      {
+        "source": "agg_90b80ab6",
+        "target": "aggregate_results"
+      },
+      {
+        "source": "agg_ddcd09d3",
+        "target": "aggregate_results"
+      },
+      {
+        "source": "aggregate_results",
+        "target": "send_to_monitoring"
+      },
+      {
+        "source": "clean_csv_data",
+        "target": "agg_6a307c6b",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "clean_csv_data",
+        "target": "llm_fallback_63457332",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "enrich_with_geolocation",
+        "target": "agg_90b80ab6",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "enrich_with_geolocation",
+        "target": "llm_fallback_12b5a5a2",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "enrich_with_geolocation",
+        "target": "write_to_database"
+      },
+      {
+        "source": "fetch_csv_from_ftp",
+        "target": "agg_33ce8ef8",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "fetch_csv_from_ftp",
+        "target": "clean_csv_data"
+      },
+      {
+        "source": "fetch_csv_from_ftp",
+        "target": "llm_fallback_494fb862",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "generate_report",
+        "target": "aggregate_results"
+      },
+      {
+        "source": "input_validation",
+        "target": "agg_2410201c",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "input_validation",
+        "target": "llm_fallback_8faf76ce",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "llm_fallback_12b5a5a2",
+        "target": "agg_90b80ab6"
+      },
+      {
+        "source": "llm_fallback_15e851ae",
+        "target": "agg_ddcd09d3"
+      },
+      {
+        "source": "llm_fallback_494fb862",
+        "target": "agg_33ce8ef8"
+      },
+      {
+        "source": "llm_fallback_63457332",
+        "target": "agg_6a307c6b"
+      },
+      {
+        "source": "llm_fallback_8faf76ce",
+        "target": "agg_2410201c"
+      },
+      {
+        "source": "llm_fallback_ba447137",
+        "target": "agg_4ec8893e"
+      },
+      {
+        "source": "risk_assessment",
+        "target": "generate_report",
+        "branch": "normal"
+      },
+      {
+        "source": "risk_assessment",
+        "target": "trigger_alert",
+        "branch": "high_risk"
+      },
+      {
+        "source": "send_to_monitoring",
+        "target": "agg_4ec8893e",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "send_to_monitoring",
+        "target": "llm_fallback_ba447137",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "start",
+        "target": "input_validation"
+      },
+      {
+        "source": "trigger_alert",
+        "target": "aggregate_results"
+      },
+      {
+        "source": "write_to_database",
+        "target": "agg_ddcd09d3",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "write_to_database",
+        "target": "llm_fallback_15e851ae",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "write_to_database",
+        "target": "risk_assessment"
+      }
+    ],
+    "meta": {
+      "planning_mode": "llm_v2",
+      "model": "deepseek-chat",
+      "provider": "deepseek",
+      "prompt_version": "v2.1",
+      "schema_version": "wf-spec.v2",
+      "score": 84.134,
+      "selected_candidate_id": "cand_1",
+      "complexity_level": "complex",
+      "candidate_count": 3
+    },
+    "requirement_meta": {
+      "app_name": "自动化数据处理与监控工作流",
+      "description": "一个用于自动化处理每日CSV日志文件的完整工作流。它从FTP服务器获取原始数据，进行清洗、转换、地理位置补全，然后写入数据库。根据业务规则判断风险，触发告警或生成报表，最后汇总所有日志和状态回传至监控平台。",
+      "scene": "generic",
+      "user_goal": "自动化完成每日日志数据的端到端处理、存储、风险监控与结果上报，确保流程可靠、可监控且支持异常恢复。",
+      "inputs": [
+        {
+          "name": "ftp_config",
+          "label": "FTP服务器配置",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "api_key",
+          "label": "地理位置API密钥",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "db_connection",
+          "label": "云数据库连接字符串",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "alert_recipients",
+          "label": "告警邮件接收人",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "monitoring_webhook",
+          "label": "监控平台Webhook地址",
+          "type": "text",
+          "required": true
+        }
+      ],
+      "output_contract": {
+        "final_status": "string (SUCCESS/FAILED)",
+        "processed_record_count": "integer",
+        "high_risk_alert_triggered": "boolean",
+        "report_generated": "boolean",
+        "execution_log_summary": "string",
+        "timestamp": "string (ISO 8601)"
+      },
+      "capabilities": [
+        "input_check",
+        "planning",
+        "tool_call",
+        "branching",
+        "generation",
+        "formatting"
+      ],
+      "node_preferences": {
+        "target_node_count": 8,
+        "need_private_kb": false,
+        "need_code_node": true,
+        "need_tools": true,
+        "need_branching": true
+      },
+      "runtime_config": {
+        "time_trigger": "0 2 * * *",
+        "error_handling": "catch_and_log",
+        "resume_from_failure": true,
+        "execution_timeout": "3600",
+        "model_tier": "deepseek-chat"
+      },
+      "constraints": []
+    }
+  }
+}

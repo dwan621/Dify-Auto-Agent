@@ -1,0 +1,653 @@
+{
+  "timestamp": "2026-04-15T14:28:58.668864",
+  "model_name": "deepseek-chat",
+  "provider": "deepseek",
+  "prompt_version": "v2.1",
+  "schema_version": "wf-spec.v2",
+  "requirement": {
+    "app_name": "自动化数据处理工作流",
+    "description": "一个中等复杂的八节点数据处理工作流，用于每日定时处理FTP服务器上的CSV日志文件。流程包括数据读取、清洗转换、地理位置信息补全、数据入库、业务规则判断、告警触发、报表生成以及执行结果汇总回传。支持异常捕获与断点续传。",
+    "scene": "generic",
+    "user_goal": "自动化完成每日日志数据的处理、分析、入库、监控与报告生成，确保数据质量，及时识别风险，并汇总流程执行状态。",
+    "inputs": [
+      {
+        "name": "ftp_config",
+        "label": "FTP服务器配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "api_credentials",
+        "label": "外部API服务凭证",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "db_connection",
+        "label": "云数据库连接信息",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "alert_rules",
+        "label": "高风险操作规则定义",
+        "type": "paragraph",
+        "required": false
+      },
+      {
+        "name": "report_template",
+        "label": "统计报表模板",
+        "type": "file",
+        "required": false
+      },
+      {
+        "name": "monitor_platform_url",
+        "label": "监控平台回传地址",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "output_contract": {
+      "summary_report": "最终生成的统计报表文件或链接",
+      "execution_log": "包含各节点状态、时间戳和详细信息的结构化日志",
+      "alert_status": "本次流程运行是否触发了告警（是/否）",
+      "data_processed_count": "成功处理并入库的数据记录条数",
+      "overall_status": "流程最终执行状态（成功/失败/部分成功）",
+      "next_trigger_time": "下一次流程计划触发的时间"
+    },
+    "capabilities": [
+      "input_check",
+      "planning",
+      "tool_call",
+      "branching",
+      "generation",
+      "formatting",
+      "optimization"
+    ],
+    "node_preferences": {
+      "target_node_count": 8,
+      "need_private_kb": false,
+      "need_code_node": true,
+      "need_tools": true,
+      "need_branching": true
+    },
+    "runtime_config": {
+      "max_execution_time": "30m",
+      "retry_attempts": 3,
+      "concurrent_nodes": 2,
+      "checkpoint_enabled": true,
+      "model_tier": "deepseek-chat"
+    },
+    "constraints": [
+      "流程必须在每日指定时间（凌晨2点）自动触发",
+      "处理过程需支持断点续传，从失败节点恢复",
+      "所有对外部服务（FTP、API、数据库）的调用必须有超时和重试机制",
+      "高风险告警邮件必须包含具体的操作上下文信息",
+      "最终输出必须汇总所有节点的执行日志"
+    ]
+  },
+  "candidate_scores": [
+    {
+      "id": "cand_1",
+      "score": 87.514,
+      "ok": true,
+      "warnings": [
+        "工具节点 ftp_download url 已重写为白名单地址",
+        "工具节点 geo_enrich headers 含敏感字段，已清空",
+        "工具节点 monitor_callback url 已重写为白名单地址",
+        "为 ftp_download 启用 fail-branch 并插入兜底链路（llm_fallback_d0dad53d->agg_35f03a9a->aggregator）",
+        "为 data_clean 启用 fail-branch 并插入兜底链路（llm_fallback_2beab91d->agg_f92f0965->geo_enrich）",
+        "为 geo_enrich 启用 fail-branch 并插入兜底链路（llm_fallback_68a6fa68->agg_7f2af1e8->aggregator）",
+        "为 db_insert 启用 fail-branch 并插入兜底链路（llm_fallback_d0a74c13->agg_78faead3->aggregator）",
+        "为 monitor_callback 启用 fail-branch 并插入兜底链路（llm_fallback_e418ad62->agg_7933092f->answer）",
+        "检测到 report_generate 存在多分支汇入，已插入 variable_aggregator=agg_9d0e8d74"
+      ],
+      "stats": {
+        "total_nodes": 23,
+        "type_counts": {
+          "start": 1,
+          "tool": 4,
+          "code": 1,
+          "ifelse": 1,
+          "llm": 7,
+          "template": 1,
+          "variable_aggregator": 7,
+          "answer": 1
+        },
+        "non_llm_node_ratio": 0.6957,
+        "has_path_start_to_answer": true
+      },
+      "repair_rounds": 0
+    }
+  ],
+  "selected_candidate_id": "cand_1",
+  "selected_spec": {
+    "workflow_name": "自动化数据处理工作流",
+    "description": "每日定时处理FTP服务器上的CSV日志文件，包括数据读取、清洗转换、地理位置信息补全、数据入库、业务规则判断、告警触发、报表生成以及执行结果汇总回传。支持异常捕获与断点续传。",
+    "scene": "generic",
+    "inputs": [
+      {
+        "name": "ftp_config",
+        "label": "FTP服务器配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "api_credentials",
+        "label": "外部API服务凭证",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "db_connection",
+        "label": "云数据库连接信息",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "alert_rules",
+        "label": "高风险操作规则定义",
+        "type": "paragraph",
+        "required": false
+      },
+      {
+        "name": "report_template",
+        "label": "统计报表模板",
+        "type": "file",
+        "required": false
+      },
+      {
+        "name": "monitor_platform_url",
+        "label": "监控平台回传地址",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "output_contract": {
+      "summary_report": "最终生成的统计报表文件或链接",
+      "execution_log": "包含各节点状态、时间戳和详细信息的结构化日志",
+      "alert_status": "本次流程运行是否触发了告警（是/否）",
+      "data_processed_count": "成功处理并入库的数据记录条数",
+      "overall_status": "流程最终执行状态（成功/失败/部分成功）",
+      "next_trigger_time": "下一次流程计划触发的时间"
+    },
+    "steps": [
+      {
+        "id": "start",
+        "type": "start",
+        "config": {
+          "name": "开始",
+          "description": "流程开始节点，接收输入参数"
+        }
+      },
+      {
+        "id": "ftp_download",
+        "type": "tool",
+        "config": {
+          "name": "FTP文件下载",
+          "description": "从FTP服务器下载CSV日志文件",
+          "method": "get",
+          "url": "https://httpbin.org/get",
+          "headers": {},
+          "body": null,
+          "variables": {
+            "ftp_config": "{{inputs.ftp_config}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "data_clean",
+        "type": "code",
+        "config": {
+          "name": "数据清洗转换",
+          "description": "清洗CSV数据，处理缺失值和格式转换",
+          "language": "python",
+          "script": "import pandas as pd\nimport json\n\ndef process(data):\n    df = pd.read_csv(data['file_path'])\n    df = df.dropna()\n    df['timestamp'] = pd.to_datetime(df['timestamp'])\n    return {'cleaned_data': df.to_dict('records'), 'row_count': len(df)}",
+          "example_key": "clean_text",
+          "variables": {
+            "file_path": "{{steps.ftp_download.output.file_path}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "geo_enrich",
+        "type": "tool",
+        "config": {
+          "name": "地理位置信息补全",
+          "description": "调用外部API补全IP地址的地理位置信息",
+          "method": "post",
+          "url": "https://httpbin.org/post",
+          "headers": "",
+          "body": {
+            "ips": "{{steps.data_clean.output.cleaned_data}}"
+          },
+          "variables": {},
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "db_insert",
+        "type": "tool",
+        "config": {
+          "name": "数据入库",
+          "description": "将处理后的数据插入云数据库",
+          "method": "post",
+          "url": "https://httpbin.org/post",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "connection": "{{inputs.db_connection}}",
+            "data": "{{steps.geo_enrich.output.enriched_data}}"
+          },
+          "variables": {},
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "risk_check",
+        "type": "ifelse",
+        "config": {
+          "name": "业务规则判断",
+          "description": "根据规则判断是否存在高风险操作",
+          "condition": "{{steps.db_insert.output.insert_count}} > 0 and {{steps.alert_rules}} != null",
+          "cases": [
+            {
+              "id": "high_risk",
+              "name": "高风险",
+              "condition": "{{steps.db_insert.output.risk_score}} > 80"
+            },
+            {
+              "id": "normal",
+              "name": "正常",
+              "condition": "true"
+            }
+          ]
+        }
+      },
+      {
+        "id": "alert_trigger",
+        "type": "llm",
+        "config": {
+          "name": "告警触发",
+          "description": "生成高风险告警邮件内容",
+          "prompt": "根据以下数据生成告警邮件：\n风险数据：{{steps.db_insert.output.high_risk_records}}\n规则定义：{{inputs.alert_rules}}\n请生成包含具体操作上下文信息的告警邮件。",
+          "variables": {}
+        }
+      },
+      {
+        "id": "report_generate",
+        "type": "template",
+        "config": {
+          "name": "报表生成",
+          "description": "生成统计报表",
+          "template": "{{inputs.report_template}}",
+          "variables": {
+            "processed_count": "{{steps.db_insert.output.insert_count}}",
+            "risk_alerts": "{{steps.alert_trigger.output.alert_content}}",
+            "execution_time": "{{global.timestamp}}"
+          }
+        }
+      },
+      {
+        "id": "aggregator",
+        "type": "variable_aggregator",
+        "config": {
+          "name": "执行结果汇总",
+          "description": "汇总所有节点的执行结果",
+          "variables": {
+            "ftp_status": "{{steps.ftp_download.output.status}}",
+            "clean_status": "{{steps.data_clean.output.status}}",
+            "geo_status": "{{steps.geo_enrich.output.status}}",
+            "db_status": "{{steps.db_insert.output.status}}",
+            "risk_status": "{{steps.risk_check.output.branch}}",
+            "alert_content": "{{steps.alert_trigger.output.alert_content}}",
+            "report_url": "{{steps.report_generate.output.report_url}}",
+            "data_count": "{{steps.db_insert.output.insert_count}}"
+          }
+        }
+      },
+      {
+        "id": "status_report",
+        "type": "llm",
+        "config": {
+          "name": "状态报告生成",
+          "description": "生成结构化执行日志和状态报告",
+          "prompt": "汇总以下执行信息：\n{{steps.aggregator.output}}\n\n生成包含以下字段的结构化报告：\n1. 各节点状态和时间戳\n2. 详细执行信息\n3. 整体状态评估（成功/失败/部分成功）\n4. 下一次触发时间建议",
+          "variables": {}
+        }
+      },
+      {
+        "id": "monitor_callback",
+        "type": "tool",
+        "config": {
+          "name": "监控平台回传",
+          "description": "将执行结果回传到监控平台",
+          "method": "post",
+          "url": "https://httpbin.org/get",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "summary_report": "{{steps.report_generate.output.report_url}}",
+            "execution_log": "{{steps.status_report.output.structured_log}}",
+            "alert_status": "{{steps.aggregator.output.risk_status}}",
+            "data_processed_count": "{{steps.aggregator.output.data_count}}",
+            "overall_status": "{{steps.status_report.output.overall_status}}",
+            "next_trigger_time": "{{steps.status_report.output.next_trigger_time}}"
+          },
+          "variables": {},
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "answer",
+        "type": "answer",
+        "config": {
+          "name": "流程完成",
+          "description": "输出最终结果"
+        }
+      },
+      {
+        "id": "llm_fallback_d0dad53d",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_35f03a9a",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "llm_fallback_2beab91d",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_f92f0965",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "llm_fallback_68a6fa68",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_7f2af1e8",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "llm_fallback_d0a74c13",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_78faead3",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "llm_fallback_e418ad62",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_7933092f",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "agg_9d0e8d74",
+        "type": "variable_aggregator",
+        "title": "分支汇合",
+        "config": {}
+      }
+    ],
+    "edges": [
+      {
+        "source": "agg_35f03a9a",
+        "target": "aggregator"
+      },
+      {
+        "source": "agg_78faead3",
+        "target": "aggregator"
+      },
+      {
+        "source": "agg_7933092f",
+        "target": "answer"
+      },
+      {
+        "source": "agg_7f2af1e8",
+        "target": "aggregator"
+      },
+      {
+        "source": "agg_9d0e8d74",
+        "target": "report_generate"
+      },
+      {
+        "source": "agg_f92f0965",
+        "target": "geo_enrich"
+      },
+      {
+        "source": "aggregator",
+        "target": "status_report"
+      },
+      {
+        "source": "alert_trigger",
+        "target": "agg_9d0e8d74"
+      },
+      {
+        "source": "data_clean",
+        "target": "agg_f92f0965",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "data_clean",
+        "target": "llm_fallback_2beab91d",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "db_insert",
+        "target": "agg_78faead3",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "db_insert",
+        "target": "llm_fallback_d0a74c13",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "db_insert",
+        "target": "risk_check"
+      },
+      {
+        "source": "ftp_download",
+        "target": "agg_35f03a9a",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "ftp_download",
+        "target": "data_clean"
+      },
+      {
+        "source": "ftp_download",
+        "target": "llm_fallback_d0dad53d",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "geo_enrich",
+        "target": "agg_7f2af1e8",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "geo_enrich",
+        "target": "db_insert"
+      },
+      {
+        "source": "geo_enrich",
+        "target": "llm_fallback_68a6fa68",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "llm_fallback_2beab91d",
+        "target": "agg_f92f0965"
+      },
+      {
+        "source": "llm_fallback_68a6fa68",
+        "target": "agg_7f2af1e8"
+      },
+      {
+        "source": "llm_fallback_d0a74c13",
+        "target": "agg_78faead3"
+      },
+      {
+        "source": "llm_fallback_d0dad53d",
+        "target": "agg_35f03a9a"
+      },
+      {
+        "source": "llm_fallback_e418ad62",
+        "target": "agg_7933092f"
+      },
+      {
+        "source": "monitor_callback",
+        "target": "agg_7933092f",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "monitor_callback",
+        "target": "llm_fallback_e418ad62",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "report_generate",
+        "target": "aggregator"
+      },
+      {
+        "source": "risk_check",
+        "target": "agg_9d0e8d74",
+        "branch": "normal"
+      },
+      {
+        "source": "risk_check",
+        "target": "alert_trigger",
+        "branch": "high_risk"
+      },
+      {
+        "source": "start",
+        "target": "ftp_download"
+      },
+      {
+        "source": "status_report",
+        "target": "monitor_callback"
+      }
+    ],
+    "meta": {
+      "inserted_aggregators": 1,
+      "planning_mode": "llm_v2",
+      "model": "deepseek-chat",
+      "provider": "deepseek",
+      "prompt_version": "v2.1",
+      "schema_version": "wf-spec.v2",
+      "score": 87.514,
+      "selected_candidate_id": "cand_1",
+      "complexity_level": "complex",
+      "candidate_count": 3
+    },
+    "requirement_meta": {
+      "app_name": "自动化数据处理工作流",
+      "description": "一个中等复杂的八节点数据处理工作流，用于每日定时处理FTP服务器上的CSV日志文件。流程包括数据读取、清洗转换、地理位置信息补全、数据入库、业务规则判断、告警触发、报表生成以及执行结果汇总回传。支持异常捕获与断点续传。",
+      "scene": "generic",
+      "user_goal": "自动化完成每日日志数据的处理、分析、入库、监控与报告生成，确保数据质量，及时识别风险，并汇总流程执行状态。",
+      "inputs": [
+        {
+          "name": "ftp_config",
+          "label": "FTP服务器配置",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "api_credentials",
+          "label": "外部API服务凭证",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "db_connection",
+          "label": "云数据库连接信息",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "alert_rules",
+          "label": "高风险操作规则定义",
+          "type": "paragraph",
+          "required": false
+        },
+        {
+          "name": "report_template",
+          "label": "统计报表模板",
+          "type": "file",
+          "required": false
+        },
+        {
+          "name": "monitor_platform_url",
+          "label": "监控平台回传地址",
+          "type": "text",
+          "required": true
+        }
+      ],
+      "output_contract": {
+        "summary_report": "最终生成的统计报表文件或链接",
+        "execution_log": "包含各节点状态、时间戳和详细信息的结构化日志",
+        "alert_status": "本次流程运行是否触发了告警（是/否）",
+        "data_processed_count": "成功处理并入库的数据记录条数",
+        "overall_status": "流程最终执行状态（成功/失败/部分成功）",
+        "next_trigger_time": "下一次流程计划触发的时间"
+      },
+      "capabilities": [
+        "input_check",
+        "planning",
+        "tool_call",
+        "branching",
+        "generation",
+        "formatting",
+        "optimization"
+      ],
+      "node_preferences": {
+        "target_node_count": 8,
+        "need_private_kb": false,
+        "need_code_node": true,
+        "need_tools": true,
+        "need_branching": true
+      },
+      "runtime_config": {
+        "max_execution_time": "30m",
+        "retry_attempts": 3,
+        "concurrent_nodes": 2,
+        "checkpoint_enabled": true,
+        "model_tier": "deepseek-chat"
+      },
+      "constraints": [
+        "流程必须在每日指定时间（凌晨2点）自动触发",
+        "处理过程需支持断点续传，从失败节点恢复",
+        "所有对外部服务（FTP、API、数据库）的调用必须有超时和重试机制",
+        "高风险告警邮件必须包含具体的操作上下文信息",
+        "最终输出必须汇总所有节点的执行日志"
+      ]
+    }
+  }
+}

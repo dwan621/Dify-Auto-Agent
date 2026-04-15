@@ -1,0 +1,307 @@
+{
+  "timestamp": "2026-04-15T14:23:57.274307",
+  "model_name": "deepseek-chat",
+  "provider": "deepseek",
+  "prompt_version": "v2.1",
+  "schema_version": "wf-spec.v2",
+  "requirement": {
+    "app_name": "自动化数据处理工作流",
+    "description": "一个中等复杂度的自动化数据处理工作流，用于每日定时处理FTP服务器上的CSV日志文件。流程包括数据读取、清洗转换、地理位置信息补全、数据入库、业务规则判断、告警触发、报表生成以及执行结果汇总回传。",
+    "scene": "generic",
+    "user_goal": "自动化完成每日日志数据的处理、分析、入库与监控，并在检测到高风险操作时及时告警，同时确保流程的可靠性与可追溯性。",
+    "inputs": [
+      {
+        "name": "ftp_config",
+        "label": "FTP服务器配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "api_key",
+        "label": "地理位置API密钥",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "db_config",
+        "label": "云数据库连接配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "alert_rules",
+        "label": "高风险操作规则定义",
+        "type": "paragraph",
+        "required": false
+      },
+      {
+        "name": "monitor_platform_url",
+        "label": "监控平台回传地址",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "output_contract": {
+      "summary_report": "最终生成的统计报表文件或链接",
+      "execution_log": "包含各节点状态、时间戳和详细信息的结构化执行日志",
+      "final_status": "流程最终执行状态（成功/失败/部分成功）",
+      "alert_triggered": "布尔值，指示本次执行是否触发了邮件告警"
+    },
+    "capabilities": [
+      "input_check",
+      "planning",
+      "tool_call",
+      "branching",
+      "generation",
+      "formatting"
+    ],
+    "node_preferences": {
+      "target_node_count": 8,
+      "need_private_kb": false,
+      "need_code_node": true,
+      "need_tools": true,
+      "need_branching": true
+    },
+    "runtime_config": {
+      "retry_on_failure": true,
+      "max_retries": 3,
+      "timeout_seconds": 3600,
+      "concurrent_execution": false,
+      "model_tier": "deepseek-chat"
+    },
+    "constraints": [
+      "流程必须在每日指定时间（凌晨2点）自动触发",
+      "需支持从断点恢复执行，避免因单点失败导致全部重做",
+      "所有外部调用（FTP、API、数据库、邮件）必须具备错误处理与重试机制",
+      "生成的结构化执行日志必须包含足够信息用于问题诊断"
+    ]
+  },
+  "candidate_scores": [
+    {
+      "id": "cand_1",
+      "score": 65.834,
+      "ok": true,
+      "warnings": [
+        "补全缺失 id: node_2fe868d1",
+        "节点 node_2fe868d1 的非法 type 已改为 llm",
+        "补充 answer 节点",
+        "原始 edges 为空，已按节点顺序自动连边",
+        "为 input_validation 启用 fail-branch 并插入兜底链路（llm_fallback_bab38788->agg_0fa8164d->node_2fe868d1）"
+      ],
+      "stats": {
+        "total_nodes": 6,
+        "type_counts": {
+          "start": 1,
+          "code": 1,
+          "llm": 2,
+          "answer": 1,
+          "variable_aggregator": 1
+        },
+        "non_llm_node_ratio": 0.6667,
+        "has_path_start_to_answer": true
+      },
+      "repair_rounds": 0
+    }
+  ],
+  "selected_candidate_id": "cand_1",
+  "selected_spec": {
+    "workflow_name": "自动化数据处理工作流",
+    "description": "每日定时处理FTP服务器上的CSV日志文件，包括数据读取、清洗转换、地理位置信息补全、数据入库、业务规则判断、告警触发、报表生成以及执行结果汇总回传。",
+    "scene": "generic",
+    "inputs": [
+      {
+        "name": "ftp_config",
+        "label": "FTP服务器配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "api_key",
+        "label": "地理位置API密钥",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "db_config",
+        "label": "云数据库连接配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "alert_rules",
+        "label": "高风险操作规则定义",
+        "type": "paragraph",
+        "required": false
+      },
+      {
+        "name": "monitor_platform_url",
+        "label": "监控平台回传地址",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "output_contract": {
+      "summary_report": "最终生成的统计报表文件或链接",
+      "execution_log": "包含各节点状态、时间戳和详细信息的结构化执行日志",
+      "final_status": "流程最终执行状态（成功/失败/部分成功）",
+      "alert_triggered": "布尔值，指示本次执行是否触发了邮件告警"
+    },
+    "steps": [
+      {
+        "id": "start",
+        "type": "start",
+        "config": {
+          "name": "开始节点"
+        }
+      },
+      {
+        "id": "input_validation",
+        "type": "code",
+        "config": {
+          "name": "输入参数验证",
+          "language": "python",
+          "script": "import json\n\ndef validate_inputs(ftp_config, api_key, db_config, monitor_platform_url):\n    # 验证必填参数\n    required_params = [ftp_config, api_key, db_config, monitor_platform_url]\n    if any(param is None or param.strip() == '' for param in required_params):\n        return {'valid': False",
+          "message": "必填参数不能为空",
+          "error_strategy": "fail-branch"
+        },
+        "": "n        ftp_data = json.loads(ftp_config)\n        required_ftp_keys = ['host', 'username', 'password', 'path']\n        if not all(key in ftp_data for key in required_ftp_keys):\n            return {'valid': False",
+        "message": "FTP配置缺少必要字段"
+      },
+      {
+        "message": "FTP配置必须是有效的JSON格式",
+        "id": "node_2fe868d1",
+        "type": "llm"
+      },
+      {
+        "id": "answer",
+        "type": "answer",
+        "title": "直接回复"
+      },
+      {
+        "id": "llm_fallback_bab38788",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_0fa8164d",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      }
+    ],
+    "required_db_keys)": "n            return {'valid': False",
+    "message": "数据库配置缺少必要字段",
+    "edges": [
+      {
+        "source": "agg_0fa8164d",
+        "target": "node_2fe868d1"
+      },
+      {
+        "source": "input_validation",
+        "target": "agg_0fa8164d",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "input_validation",
+        "target": "llm_fallback_bab38788",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "llm_fallback_bab38788",
+        "target": "agg_0fa8164d"
+      },
+      {
+        "source": "node_2fe868d1",
+        "target": "answer"
+      },
+      {
+        "source": "start",
+        "target": "input_validation"
+      }
+    ],
+    "meta": {
+      "planning_mode": "llm_v2",
+      "model": "deepseek-chat",
+      "provider": "deepseek",
+      "prompt_version": "v2.1",
+      "schema_version": "wf-spec.v2",
+      "score": 65.834,
+      "selected_candidate_id": "cand_1",
+      "complexity_level": "complex",
+      "candidate_count": 3
+    },
+    "requirement_meta": {
+      "app_name": "自动化数据处理工作流",
+      "description": "一个中等复杂度的自动化数据处理工作流，用于每日定时处理FTP服务器上的CSV日志文件。流程包括数据读取、清洗转换、地理位置信息补全、数据入库、业务规则判断、告警触发、报表生成以及执行结果汇总回传。",
+      "scene": "generic",
+      "user_goal": "自动化完成每日日志数据的处理、分析、入库与监控，并在检测到高风险操作时及时告警，同时确保流程的可靠性与可追溯性。",
+      "inputs": [
+        {
+          "name": "ftp_config",
+          "label": "FTP服务器配置",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "api_key",
+          "label": "地理位置API密钥",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "db_config",
+          "label": "云数据库连接配置",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "alert_rules",
+          "label": "高风险操作规则定义",
+          "type": "paragraph",
+          "required": false
+        },
+        {
+          "name": "monitor_platform_url",
+          "label": "监控平台回传地址",
+          "type": "text",
+          "required": true
+        }
+      ],
+      "output_contract": {
+        "summary_report": "最终生成的统计报表文件或链接",
+        "execution_log": "包含各节点状态、时间戳和详细信息的结构化执行日志",
+        "final_status": "流程最终执行状态（成功/失败/部分成功）",
+        "alert_triggered": "布尔值，指示本次执行是否触发了邮件告警"
+      },
+      "capabilities": [
+        "input_check",
+        "planning",
+        "tool_call",
+        "branching",
+        "generation",
+        "formatting"
+      ],
+      "node_preferences": {
+        "target_node_count": 8,
+        "need_private_kb": false,
+        "need_code_node": true,
+        "need_tools": true,
+        "need_branching": true
+      },
+      "runtime_config": {
+        "retry_on_failure": true,
+        "max_retries": 3,
+        "timeout_seconds": 3600,
+        "concurrent_execution": false,
+        "model_tier": "deepseek-chat"
+      },
+      "constraints": [
+        "流程必须在每日指定时间（凌晨2点）自动触发",
+        "需支持从断点恢复执行，避免因单点失败导致全部重做",
+        "所有外部调用（FTP、API、数据库、邮件）必须具备错误处理与重试机制",
+        "生成的结构化执行日志必须包含足够信息用于问题诊断"
+      ]
+    }
+  }
+}

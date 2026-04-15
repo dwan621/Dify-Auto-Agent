@@ -1,0 +1,505 @@
+{
+  "timestamp": "2026-04-15T08:55:04.482754",
+  "model_name": "deepseek-chat",
+  "provider": "deepseek",
+  "prompt_version": "v2.1",
+  "schema_version": "wf-spec.v2",
+  "requirement": {
+    "app_name": "自动化数据处理与监控系统",
+    "description": "一个中等复杂度的自动化数据处理工作流，用于每日定时处理FTP服务器上的CSV日志文件。流程包括数据读取、清洗转换、地理位置信息补全、数据入库、业务规则判断、风险告警、报表生成以及执行结果汇总与回传。系统支持异常捕获与断点续传。",
+    "scene": "generic",
+    "user_goal": "自动化完成每日日志数据的处理、分析、存储与监控，确保数据质量，识别业务风险，并生成可追溯的执行报告。",
+    "inputs": [
+      {
+        "name": "ftp_config",
+        "label": "FTP服务器配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "api_key",
+        "label": "地理位置API密钥",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "db_connection",
+        "label": "云数据库连接字符串",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "alert_recipients",
+        "label": "告警邮件接收人",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "monitoring_platform_url",
+        "label": "监控平台回传地址",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "output_contract": {
+      "summary_report": "包含每日处理状态、数据记录数、清洗结果、高风险操作数量、报表生成状态及任何错误信息的JSON格式汇总报告。",
+      "execution_logs": "每个节点执行的详细日志文件。",
+      "final_status": "流程最终状态（成功、部分成功、失败）。"
+    },
+    "capabilities": [
+      "planning",
+      "tool_call",
+      "branching",
+      "generation",
+      "formatting"
+    ],
+    "node_preferences": {
+      "target_node_count": 8,
+      "need_private_kb": false,
+      "need_code_node": true,
+      "need_tools": true,
+      "need_branching": true
+    },
+    "runtime_config": {
+      "max_execution_time": "30 minutes",
+      "retry_attempts": 3,
+      "concurrent_nodes": 2,
+      "model_tier": "deepseek-chat"
+    },
+    "constraints": []
+  },
+  "candidate_scores": [
+    {
+      "id": "cand_1",
+      "score": 97.694,
+      "ok": true,
+      "warnings": [
+        "工具节点 ftp_download url 已重写为白名单地址",
+        "工具节点 geo_enrichment url 已重写为白名单地址",
+        "工具节点 geo_enrichment headers 含敏感字段，已清空",
+        "为 ftp_download 启用 fail-branch 并插入兜底链路（llm_fallback_41cea660->agg_9b97eb84->error_handling）",
+        "为 data_cleaning 启用 fail-branch 并插入兜底链路（llm_fallback_302a3399->agg_04b873d8->error_handling）",
+        "为 geo_enrichment 启用 fail-branch 并插入兜底链路（llm_fallback_d48415e0->agg_7a048b4b->error_handling）",
+        "检测到 error_handling 存在多分支汇入，已插入 variable_aggregator=agg_a8837af5"
+      ],
+      "stats": {
+        "total_nodes": 17,
+        "type_counts": {
+          "start": 1,
+          "tool": 2,
+          "code": 1,
+          "ifelse": 1,
+          "llm": 4,
+          "template": 2,
+          "variable_aggregator": 5,
+          "answer": 1
+        },
+        "non_llm_node_ratio": 0.7647,
+        "has_path_start_to_answer": true
+      },
+      "repair_rounds": 0
+    }
+  ],
+  "selected_candidate_id": "cand_1",
+  "selected_spec": {
+    "workflow_name": "自动化数据处理与监控系统",
+    "description": "每日定时处理FTP服务器上的CSV日志文件，包括数据读取、清洗转换、地理位置信息补全、数据入库、业务规则判断、风险告警、报表生成以及执行结果汇总与回传。支持异常捕获与断点续传。",
+    "scene": "generic",
+    "inputs": [
+      {
+        "name": "ftp_config",
+        "label": "FTP服务器配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "api_key",
+        "label": "地理位置API密钥",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "db_connection",
+        "label": "云数据库连接字符串",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "alert_recipients",
+        "label": "告警邮件接收人",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "monitoring_platform_url",
+        "label": "监控平台回传地址",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "output_contract": {
+      "summary_report": "包含每日处理状态、数据记录数、清洗结果、高风险操作数量、报表生成状态及任何错误信息的JSON格式汇总报告。",
+      "execution_logs": "每个节点执行的详细日志文件。",
+      "final_status": "流程最终状态（成功、部分成功、失败）。"
+    },
+    "steps": [
+      {
+        "id": "start",
+        "type": "start",
+        "config": {
+          "name": "开始",
+          "description": "启动数据处理流程"
+        }
+      },
+      {
+        "id": "ftp_download",
+        "type": "tool",
+        "config": {
+          "name": "FTP文件下载",
+          "description": "从FTP服务器下载CSV日志文件",
+          "method": "get",
+          "url": "https://httpbin.org/get",
+          "headers": {},
+          "body": {},
+          "variables": {
+            "ftp_config": "{{inputs.ftp_config}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "data_cleaning",
+        "type": "code",
+        "config": {
+          "name": "数据清洗转换",
+          "description": "清洗CSV数据，处理缺失值和格式转换",
+          "language": "python",
+          "script": "import pandas as pd\nimport json\n\ndef clean_data(csv_content):\n    # 读取CSV数据\n    df = pd.read_csv(pd.compat.StringIO(csv_content))\n    \n    # 清洗操作\n    df = df.dropna(subset=['user_id', 'timestamp'])  # 删除关键字段缺失的行\n    df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')\n    df = df.dropna(subset=['timestamp'])  # 删除时间格式错误行\n    \n    # 标准化文本字段\n    if 'action' in df.columns:\n        df['action'] = df['action'].str.strip().str.lower()\n    \n    # 返回清洗后的数据\n    return df.to_dict(orient='records'), len(df)\n\n# 执行清洗\ncleaned_data, record_count = clean_data(input_data)\noutput = {\n    'cleaned_data': cleaned_data,\n    'record_count': record_count,\n    'status': 'success'\n}",
+          "example_key": "clean_text",
+          "variables": {
+            "input_data": "{{steps.ftp_download.output.body}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "geo_enrichment",
+        "type": "tool",
+        "config": {
+          "name": "地理位置信息补全",
+          "description": "调用地理位置API补全IP地址信息",
+          "method": "post",
+          "url": "https://httpbin.org/get",
+          "headers": "",
+          "body": {
+            "ip_addresses": "{{steps.data_cleaning.output.cleaned_data | map(attribute='ip') | list}}"
+          },
+          "variables": {
+            "api_key": "{{inputs.api_key}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "data_validation",
+        "type": "ifelse",
+        "config": {
+          "name": "数据质量检查",
+          "description": "检查清洗后的数据质量是否达标",
+          "condition": "{{steps.data_cleaning.output.record_count > 0 and steps.data_cleaning.output.status == 'success'}}",
+          "cases": [
+            {
+              "id": "quality_pass",
+              "name": "质量达标",
+              "condition": "true"
+            },
+            {
+              "id": "quality_fail",
+              "name": "质量不达标",
+              "condition": "false"
+            }
+          ]
+        }
+      },
+      {
+        "id": "risk_analysis",
+        "type": "llm",
+        "config": {
+          "name": "业务风险分析",
+          "description": "分析数据中的高风险操作和异常模式",
+          "prompt": "分析以下日志数据，识别高风险操作和异常模式：\n\n数据记录数：{{steps.data_cleaning.output.record_count}}\n清洗后数据：{{steps.data_cleaning.output.cleaned_data | tojson}}\n地理位置信息：{{steps.geo_enrichment.output | tojson}}\n\n请分析：\n1. 高风险操作数量（如登录失败、权限变更等）\n2. 异常访问模式（如短时间内多次访问）\n3. 地理位置异常（如异地登录）\n4. 生成风险报告摘要",
+          "model": "deepseek-chat",
+          "variables": {}
+        }
+      },
+      {
+        "id": "report_generation",
+        "type": "template",
+        "config": {
+          "name": "报表生成",
+          "description": "生成每日处理报告",
+          "template": "## 自动化数据处理报告\n\n### 执行概览\n- 处理时间：{{timestamp}}\n- 数据记录数：{{steps.data_cleaning.output.record_count}}\n- 清洗状态：{{steps.data_cleaning.output.status}}\n\n### 风险分析结果\n{{steps.risk_analysis.output}}\n\n### 地理位置补全\n- 补全记录数：{{steps.geo_enrichment.output.enriched_count | default(0)}}\n- 成功率：{{steps.geo_enrichment.output.success_rate | default('N/A')}}\n\n### 系统状态\n- 数据库连接：{{inputs.db_connection | truncate(20)}}\n- 监控平台：{{inputs.monitoring_platform_url}}\n\n---\n*报告生成时间：{{timestamp}}*",
+          "variables": {
+            "timestamp": "{{now()}}"
+          }
+        }
+      },
+      {
+        "id": "aggregate_results",
+        "type": "variable_aggregator",
+        "config": {
+          "name": "结果汇总",
+          "description": "汇总各分支执行结果",
+          "variables": {
+            "data_quality_status": "{{steps.data_validation.output.selected_case}}",
+            "cleaned_record_count": "{{steps.data_cleaning.output.record_count}}",
+            "risk_analysis_result": "{{steps.risk_analysis.output}}",
+            "report_content": "{{steps.report_generation.output}}",
+            "geo_enrichment_status": "{{steps.geo_enrichment.output.status}}",
+            "ftp_download_status": "{{steps.ftp_download.output.status}}"
+          }
+        }
+      },
+      {
+        "id": "final_answer",
+        "type": "answer",
+        "config": {
+          "name": "最终输出",
+          "description": "输出处理结果汇总报告"
+        }
+      },
+      {
+        "id": "error_handling",
+        "type": "template",
+        "config": {
+          "name": "错误处理",
+          "description": "生成错误报告",
+          "template": "## 数据处理错误报告\n\n### 错误详情\n- 错误节点：{{error_node}}\n- 错误时间：{{timestamp}}\n- 错误信息：{{error_message}}\n\n### 受影响环节\n{{affected_steps}}\n\n### 建议操作\n1. 检查FTP服务器连接\n2. 验证API密钥有效性\n3. 检查数据库连接\n4. 查看详细执行日志\n\n---\n*系统自动生成*",
+          "variables": {
+            "timestamp": "{{now()}}"
+          }
+        }
+      },
+      {
+        "id": "llm_fallback_41cea660",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_9b97eb84",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "llm_fallback_302a3399",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_04b873d8",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "llm_fallback_d48415e0",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_7a048b4b",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "agg_a8837af5",
+        "type": "variable_aggregator",
+        "title": "分支汇合",
+        "config": {}
+      }
+    ],
+    "edges": [
+      {
+        "source": "agg_04b873d8",
+        "target": "agg_a8837af5"
+      },
+      {
+        "source": "agg_7a048b4b",
+        "target": "agg_a8837af5"
+      },
+      {
+        "source": "agg_9b97eb84",
+        "target": "agg_a8837af5"
+      },
+      {
+        "source": "agg_a8837af5",
+        "target": "error_handling"
+      },
+      {
+        "source": "aggregate_results",
+        "target": "final_answer"
+      },
+      {
+        "source": "data_cleaning",
+        "target": "agg_04b873d8",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "data_cleaning",
+        "target": "geo_enrichment"
+      },
+      {
+        "source": "data_cleaning",
+        "target": "llm_fallback_302a3399",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "data_validation",
+        "target": "agg_a8837af5",
+        "branch": "quality_fail"
+      },
+      {
+        "source": "data_validation",
+        "target": "risk_analysis",
+        "branch": "quality_pass"
+      },
+      {
+        "source": "error_handling",
+        "target": "aggregate_results"
+      },
+      {
+        "source": "ftp_download",
+        "target": "agg_9b97eb84",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "ftp_download",
+        "target": "data_cleaning"
+      },
+      {
+        "source": "ftp_download",
+        "target": "llm_fallback_41cea660",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "geo_enrichment",
+        "target": "agg_7a048b4b",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "geo_enrichment",
+        "target": "data_validation"
+      },
+      {
+        "source": "geo_enrichment",
+        "target": "llm_fallback_d48415e0",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "llm_fallback_302a3399",
+        "target": "agg_04b873d8"
+      },
+      {
+        "source": "llm_fallback_41cea660",
+        "target": "agg_9b97eb84"
+      },
+      {
+        "source": "llm_fallback_d48415e0",
+        "target": "agg_7a048b4b"
+      },
+      {
+        "source": "report_generation",
+        "target": "aggregate_results"
+      },
+      {
+        "source": "risk_analysis",
+        "target": "report_generation"
+      },
+      {
+        "source": "start",
+        "target": "ftp_download"
+      }
+    ],
+    "meta": {
+      "inserted_aggregators": 1,
+      "planning_mode": "llm_v2",
+      "model": "deepseek-chat",
+      "provider": "deepseek",
+      "prompt_version": "v2.1",
+      "schema_version": "wf-spec.v2",
+      "score": 97.694,
+      "selected_candidate_id": "cand_1",
+      "complexity_level": "complex",
+      "candidate_count": 3
+    },
+    "requirement_meta": {
+      "app_name": "自动化数据处理与监控系统",
+      "description": "一个中等复杂度的自动化数据处理工作流，用于每日定时处理FTP服务器上的CSV日志文件。流程包括数据读取、清洗转换、地理位置信息补全、数据入库、业务规则判断、风险告警、报表生成以及执行结果汇总与回传。系统支持异常捕获与断点续传。",
+      "scene": "generic",
+      "user_goal": "自动化完成每日日志数据的处理、分析、存储与监控，确保数据质量，识别业务风险，并生成可追溯的执行报告。",
+      "inputs": [
+        {
+          "name": "ftp_config",
+          "label": "FTP服务器配置",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "api_key",
+          "label": "地理位置API密钥",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "db_connection",
+          "label": "云数据库连接字符串",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "alert_recipients",
+          "label": "告警邮件接收人",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "monitoring_platform_url",
+          "label": "监控平台回传地址",
+          "type": "text",
+          "required": true
+        }
+      ],
+      "output_contract": {
+        "summary_report": "包含每日处理状态、数据记录数、清洗结果、高风险操作数量、报表生成状态及任何错误信息的JSON格式汇总报告。",
+        "execution_logs": "每个节点执行的详细日志文件。",
+        "final_status": "流程最终状态（成功、部分成功、失败）。"
+      },
+      "capabilities": [
+        "planning",
+        "tool_call",
+        "branching",
+        "generation",
+        "formatting"
+      ],
+      "node_preferences": {
+        "target_node_count": 8,
+        "need_private_kb": false,
+        "need_code_node": true,
+        "need_tools": true,
+        "need_branching": true
+      },
+      "runtime_config": {
+        "max_execution_time": "30 minutes",
+        "retry_attempts": 3,
+        "concurrent_nodes": 2,
+        "model_tier": "deepseek-chat"
+      },
+      "constraints": []
+    }
+  }
+}

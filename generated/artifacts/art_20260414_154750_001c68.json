@@ -1,0 +1,432 @@
+{
+  "timestamp": "2026-04-14T15:47:50.467289",
+  "model_name": "deepseek-chat",
+  "provider": "deepseek",
+  "prompt_version": "v2.1",
+  "schema_version": "wf-spec.v2",
+  "requirement": {
+    "app_name": "智能意图处理工作流",
+    "description": "一个复杂的工作流，先进行意图理解，然后根据意图分支执行检索、工具调用和代码处理，最后统一格式化输出结果",
+    "scene": "generic",
+    "user_goal": "通过意图分析自动选择并执行合适的处理路径（检索、工具调用或代码执行），最终获得格式统一的处理结果",
+    "inputs": [
+      {
+        "name": "user_input",
+        "label": "用户输入",
+        "type": "paragraph",
+        "required": true
+      },
+      {
+        "name": "additional_context",
+        "label": "附加上下文",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "reference_files",
+        "label": "参考文件",
+        "type": "file",
+        "required": false
+      }
+    ],
+    "output_contract": {
+      "format": "structured_json",
+      "fields": [
+        "intent_type",
+        "processed_results",
+        "execution_path",
+        "formatted_output"
+      ]
+    },
+    "capabilities": [
+      "intent_analysis",
+      "planning",
+      "retrieval",
+      "tool_call",
+      "code_execution",
+      "branching",
+      "generation",
+      "formatting"
+    ],
+    "node_preferences": {
+      "target_node_count": 8,
+      "need_private_kb": true,
+      "need_code_node": true,
+      "need_tools": true,
+      "need_branching": true
+    },
+    "runtime_config": {
+      "max_execution_time": 300,
+      "allow_parallel_branches": true,
+      "error_handling": "continue_on_error",
+      "model_tier": "deepseek-chat"
+    },
+    "constraints": [
+      "必须包含意图分析节点",
+      "必须支持至少3个分支路径",
+      "最终输出必须统一格式化"
+    ]
+  },
+  "candidate_scores": [
+    {
+      "id": "cand_1",
+      "score": -0.466,
+      "ok": false,
+      "warnings": [],
+      "stats": {
+        "total_nodes": 12,
+        "type_counts": {
+          "start": 1,
+          "llm": 4,
+          "ifelse": 1,
+          "knowledge_retrieval": 1,
+          "code": 1,
+          "tool": 1,
+          "variable_aggregator": 1,
+          "template": 1,
+          "answer": 1
+        },
+        "non_llm_node_ratio": 0.6667,
+        "has_path_start_to_answer": true
+      },
+      "repair_rounds": 2
+    }
+  ],
+  "selected_candidate_id": "cand_1",
+  "selected_spec": {
+    "workflow_name": "智能意图处理工作流",
+    "description": "通过意图分析自动选择并执行合适的处理路径（检索、工具调用或代码执行），最终获得格式统一的处理结果",
+    "scene": "generic",
+    "inputs": [
+      {
+        "name": "user_input",
+        "label": "用户输入",
+        "type": "paragraph",
+        "required": true
+      },
+      {
+        "name": "additional_context",
+        "label": "附加上下文",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "reference_files",
+        "label": "参考文件",
+        "type": "file",
+        "required": false
+      }
+    ],
+    "output_contract": {
+      "format": "structured_json",
+      "fields": [
+        "intent_type",
+        "processed_results",
+        "execution_path",
+        "formatted_output"
+      ]
+    },
+    "steps": [
+      {
+        "id": "start",
+        "type": "start",
+        "config": {}
+      },
+      {
+        "id": "intent_analysis",
+        "type": "llm",
+        "config": {
+          "model": "deepseek-chat",
+          "prompt": "分析用户输入的意图类型。可能的意图类型包括：1) information_retrieval - 需要检索信息 2) data_processing - 需要代码处理数据 3) api_call - 需要调用外部工具API 4) other - 其他类型。输出JSON格式：{\"intent_type\": \"意图类型\", \"reasoning\": \"分析理由\"}",
+          "variables": {
+            "user_input": "{{inputs.user_input}}",
+            "additional_context": "{{inputs.additional_context}}"
+          }
+        }
+      },
+      {
+        "id": "intent_branch",
+        "type": "ifelse",
+        "config": {
+          "condition": "{{steps.intent_analysis.output.intent_type}}",
+          "cases": [
+            {
+              "id": "retrieval_branch",
+              "value": "information_retrieval",
+              "label": "检索分支"
+            },
+            {
+              "id": "code_branch",
+              "value": "data_processing",
+              "label": "代码处理分支"
+            },
+            {
+              "id": "tool_branch",
+              "value": "api_call",
+              "label": "工具调用分支"
+            },
+            {
+              "id": "other_branch",
+              "value": "other",
+              "label": "其他分支"
+            }
+          ]
+        }
+      },
+      {
+        "id": "knowledge_retrieval",
+        "type": "knowledge_retrieval",
+        "config": {
+          "query": "{{inputs.user_input}}",
+          "top_k": 5,
+          "threshold": 0.7
+        }
+      },
+      {
+        "id": "data_processing_code",
+        "type": "code",
+        "config": {
+          "language": "python",
+          "script": "import json\nimport re\n\ndef process_data(user_input, context=None):\n    \"\"\"处理用户输入的数据\"\"\"\n    # 示例：提取数字和文本\n    numbers = re.findall(r'\\d+', user_input)\n    words = re.findall(r'[A-Za-z]+', user_input)\n    \n    result = {\n        \"extracted_numbers\": [int(n) for n in numbers],\n        \"extracted_words\": words,\n        \"total_numbers\": len(numbers),\n        \"total_words\": len(words),\n        \"context\": context\n    }\n    return json.dumps(result, ensure_ascii=False)",
+          "example_key": "clean_text",
+          "variables": {
+            "user_input": "{{inputs.user_input}}",
+            "context": "{{inputs.additional_context}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "api_tool_call",
+        "type": "tool",
+        "config": {
+          "method": "get",
+          "url": "https://httpbin.org/get",
+          "headers": {
+            "Content-Type": "application/json",
+            "User-Agent": "IntentWorkflow/1.0"
+          },
+          "body": null,
+          "variables": {
+            "query_param": "{{inputs.user_input}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "other_intent_handler",
+        "type": "llm",
+        "config": {
+          "model": "deepseek-chat",
+          "prompt": "处理其他类型的意图。用户输入：{{inputs.user_input}}。请分析并生成适当的响应。",
+          "variables": {
+            "user_input": "{{inputs.user_input}}"
+          }
+        }
+      },
+      {
+        "id": "code_error_handler",
+        "type": "llm",
+        "config": {
+          "model": "deepseek-chat",
+          "prompt": "代码执行失败处理。原始输入：{{inputs.user_input}}。错误信息：{{steps.data_processing_code.error}}。请生成错误处理响应。",
+          "variables": {
+            "user_input": "{{inputs.user_input}}"
+          }
+        }
+      },
+      {
+        "id": "tool_error_handler",
+        "type": "llm",
+        "config": {
+          "model": "deepseek-chat",
+          "prompt": "工具调用失败处理。原始输入：{{inputs.user_input}}。错误信息：{{steps.api_tool_call.error}}。请生成错误处理响应。",
+          "variables": {
+            "user_input": "{{inputs.user_input}}"
+          }
+        }
+      },
+      {
+        "id": "results_aggregator",
+        "type": "variable_aggregator",
+        "config": {
+          "variables": {
+            "intent_type": "{{steps.intent_analysis.output.intent_type}}",
+            "retrieval_results": "{{steps.knowledge_retrieval.output}}",
+            "code_results": "{{steps.data_processing_code.output}}",
+            "code_error_results": "{{steps.code_error_handler.output}}",
+            "tool_results": "{{steps.api_tool_call.output}}",
+            "tool_error_results": "{{steps.tool_error_handler.output}}",
+            "other_results": "{{steps.other_intent_handler.output}}",
+            "execution_path": "{{steps.intent_branch.output.selected_branch}}"
+          }
+        }
+      },
+      {
+        "id": "format_output",
+        "type": "template",
+        "config": {
+          "template": "{\n  \"intent_type\": \"{{aggregated.intent_type}}\",\n  \"processed_results\": {\n    \"retrieval\": {{aggregated.retrieval_results | tojson}},\n    \"code_processing\": {{aggregated.code_results | tojson}},\n    \"code_error\": {{aggregated.code_error_results | tojson}},\n    \"tool_call\": {{aggregated.tool_results | tojson}},\n    \"tool_error\": {{aggregated.tool_error_results | tojson}},\n    \"other\": {{aggregated.other_results | tojson}}\n  },\n  \"execution_path\": \"{{aggregated.execution_path}}\",\n  \"formatted_output\": \"意图类型：{{aggregated.intent_type}}，执行路径：{{aggregated.execution_path}}，已成功处理用户请求。\"\n}",
+          "variables": {
+            "aggregated": "{{steps.results_aggregator.output}}"
+          }
+        }
+      },
+      {
+        "id": "answer",
+        "type": "answer",
+        "config": {
+          "answer": "{{steps.format_output.output}}"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "api_tool_call",
+        "target": "results_aggregator",
+        "branch": "success-branch"
+      },
+      {
+        "source": "api_tool_call",
+        "target": "tool_error_handler",
+        "branch": "fail-branch"
+      },
+      {
+        "source": "code_error_handler",
+        "target": "results_aggregator"
+      },
+      {
+        "source": "data_processing_code",
+        "target": "code_error_handler",
+        "branch": "fail-branch"
+      },
+      {
+        "source": "data_processing_code",
+        "target": "results_aggregator",
+        "branch": "success-branch"
+      },
+      {
+        "source": "format_output",
+        "target": "answer"
+      },
+      {
+        "source": "intent_analysis",
+        "target": "intent_branch"
+      },
+      {
+        "source": "intent_branch",
+        "target": "api_tool_call",
+        "branch": "tool_branch"
+      },
+      {
+        "source": "intent_branch",
+        "target": "data_processing_code",
+        "branch": "code_branch"
+      },
+      {
+        "source": "intent_branch",
+        "target": "knowledge_retrieval",
+        "branch": "retrieval_branch"
+      },
+      {
+        "source": "intent_branch",
+        "target": "other_intent_handler",
+        "branch": "other_branch"
+      },
+      {
+        "source": "knowledge_retrieval",
+        "target": "results_aggregator"
+      },
+      {
+        "source": "other_intent_handler",
+        "target": "results_aggregator"
+      },
+      {
+        "source": "results_aggregator",
+        "target": "format_output"
+      },
+      {
+        "source": "start",
+        "target": "intent_analysis"
+      },
+      {
+        "source": "tool_error_handler",
+        "target": "results_aggregator"
+      }
+    ],
+    "meta": {
+      "planning_mode": "llm_v2",
+      "model": "deepseek-chat",
+      "provider": "deepseek",
+      "prompt_version": "v2.1",
+      "schema_version": "wf-spec.v2",
+      "score": -0.466,
+      "selected_candidate_id": "cand_1",
+      "complexity_level": "complex",
+      "candidate_count": 3
+    },
+    "requirement_meta": {
+      "app_name": "智能意图处理工作流",
+      "description": "一个复杂的工作流，先进行意图理解，然后根据意图分支执行检索、工具调用和代码处理，最后统一格式化输出结果",
+      "scene": "generic",
+      "user_goal": "通过意图分析自动选择并执行合适的处理路径（检索、工具调用或代码执行），最终获得格式统一的处理结果",
+      "inputs": [
+        {
+          "name": "user_input",
+          "label": "用户输入",
+          "type": "paragraph",
+          "required": true
+        },
+        {
+          "name": "additional_context",
+          "label": "附加上下文",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "reference_files",
+          "label": "参考文件",
+          "type": "file",
+          "required": false
+        }
+      ],
+      "output_contract": {
+        "format": "structured_json",
+        "fields": [
+          "intent_type",
+          "processed_results",
+          "execution_path",
+          "formatted_output"
+        ]
+      },
+      "capabilities": [
+        "intent_analysis",
+        "planning",
+        "retrieval",
+        "tool_call",
+        "code_execution",
+        "branching",
+        "generation",
+        "formatting"
+      ],
+      "node_preferences": {
+        "target_node_count": 8,
+        "need_private_kb": true,
+        "need_code_node": true,
+        "need_tools": true,
+        "need_branching": true
+      },
+      "runtime_config": {
+        "max_execution_time": 300,
+        "allow_parallel_branches": true,
+        "error_handling": "continue_on_error",
+        "model_tier": "deepseek-chat"
+      },
+      "constraints": [
+        "必须包含意图分析节点",
+        "必须支持至少3个分支路径",
+        "最终输出必须统一格式化"
+      ]
+    }
+  }
+}

@@ -1,0 +1,677 @@
+{
+  "timestamp": "2026-04-14T17:44:59.549202",
+  "model_name": "deepseek-chat",
+  "provider": "deepseek",
+  "prompt_version": "v2.1",
+  "schema_version": "wf-spec.v2",
+  "requirement": {
+    "app_name": "市场活动线索全生命周期管理",
+    "description": "通过自动化与人工协作结合的方式，高效处理从多渠道采集的原始线索，实现从获取到转化（或沉淀）的全过程精细化管控。",
+    "scene": "generic",
+    "user_goal": "对市场活动获取的线索进行清洗、评分、分流、跟进、转化或沉淀的全生命周期管理，提升线索转化效率并防止流失。",
+    "inputs": [
+      {
+        "name": "raw_leads_data",
+        "label": "原始线索数据",
+        "type": "file",
+        "required": true
+      },
+      {
+        "name": "scoring_criteria",
+        "label": "智能评分规则/模型",
+        "type": "file",
+        "required": false
+      },
+      {
+        "name": "budget_threshold",
+        "label": "预算分流阈值",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "source_priority_list",
+        "label": "线索来源优先级列表",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "timeout_duration",
+        "label": "销售跟进超时时长（小时）",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "nurturing_strategy",
+        "label": "长期孵化培育策略",
+        "type": "paragraph",
+        "required": false
+      }
+    ],
+    "output_contract": {
+      "cleaned_leads": "清洗并格式化后的线索数据列表。",
+      "scored_leads": "带有智能评分的线索列表。",
+      "vip_leads_assignment_log": "VIP线索手动指派记录。",
+      "public_leads_distribution_log": "公海池线索自动匹配分发记录。",
+      "timeout_alerts": "销售跟进超时预警列表。",
+      "first_contact_results": "首次触达结果汇总。",
+      "formal_opportunities": "转化为正式商机的线索列表。",
+      "defeated_archives": "标记为战败并归档的线索列表。",
+      "nurturing_candidates": "转入长期孵化培育的线索列表。",
+      "process_summary_report": "全流程执行与结果汇总报告。"
+    },
+    "capabilities": [
+      "input_check",
+      "intent_analysis",
+      "planning",
+      "retrieval",
+      "code_execution",
+      "tool_call",
+      "branching",
+      "generation",
+      "optimization",
+      "formatting"
+    ],
+    "node_preferences": {
+      "target_node_count": 12,
+      "need_private_kb": false,
+      "need_code_node": true,
+      "need_tools": true,
+      "need_branching": true
+    },
+    "runtime_config": {
+      "max_execution_time": "30m",
+      "retry_attempts": 2,
+      "concurrent_branches": true,
+      "model_tier": "deepseek-chat"
+    },
+    "constraints": []
+  },
+  "candidate_scores": [
+    {
+      "id": "cand_1",
+      "score": 94.166,
+      "ok": true,
+      "warnings": [
+        "ifelse budget_split 缺少分支 high，已补默认连边",
+        "为 input_check 启用 fail-branch 并插入兜底链路（llm_fallback_ded09404->agg_2d8cea0e->data_cleaner）",
+        "为 data_cleaner 启用 fail-branch 并插入兜底链路（llm_fallback_85d3c65b->agg_85dc5e99->lead_scoring）",
+        "为 vip_assignment 启用 fail-branch 并插入兜底链路（llm_fallback_f68ec331->agg_5535066a->aggregate_distribution）",
+        "为 public_distribution 启用 fail-branch 并插入兜底链路（llm_fallback_c31f463b->agg_2d8f66c4->aggregate_distribution）",
+        "为 followup_monitor 启用 fail-branch 并插入兜底链路（llm_fallback_5c33d781->agg_bbcbc144->first_contact）",
+        "检测到 answer 存在多分支汇入，已插入 variable_aggregator=agg_dd27ecc8",
+        "节点数接近上限，跳过为 generate_report 插入 variable_aggregator"
+      ],
+      "stats": {
+        "total_nodes": 24,
+        "type_counts": {
+          "start": 1,
+          "code": 3,
+          "llm": 7,
+          "ifelse": 2,
+          "tool": 2,
+          "variable_aggregator": 7,
+          "template": 1,
+          "answer": 1
+        },
+        "non_llm_node_ratio": 0.7083,
+        "has_path_start_to_answer": true
+      },
+      "repair_rounds": 0
+    }
+  ],
+  "selected_candidate_id": "cand_1",
+  "selected_spec": {
+    "workflow_name": "市场活动线索全生命周期管理",
+    "description": "通过自动化与人工协作结合的方式，高效处理从多渠道采集的原始线索，实现从获取到转化（或沉淀）的全过程精细化管控。",
+    "scene": "generic",
+    "inputs": [
+      {
+        "name": "raw_leads_data",
+        "label": "原始线索数据",
+        "type": "file",
+        "required": true
+      },
+      {
+        "name": "scoring_criteria",
+        "label": "智能评分规则/模型",
+        "type": "file",
+        "required": false
+      },
+      {
+        "name": "budget_threshold",
+        "label": "预算分流阈值",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "source_priority_list",
+        "label": "线索来源优先级列表",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "timeout_duration",
+        "label": "销售跟进超时时长（小时）",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "nurturing_strategy",
+        "label": "长期孵化培育策略",
+        "type": "paragraph",
+        "required": false
+      }
+    ],
+    "output_contract": {
+      "cleaned_leads": "清洗并格式化后的线索数据列表。",
+      "scored_leads": "带有智能评分的线索列表。",
+      "vip_leads_assignment_log": "VIP线索手动指派记录。",
+      "public_leads_distribution_log": "公海池线索自动匹配分发记录。",
+      "timeout_alerts": "销售跟进超时预警列表。",
+      "first_contact_results": "首次触达结果汇总。",
+      "formal_opportunities": "转化为正式商机的线索列表。",
+      "defeated_archives": "标记为战败并归档的线索列表。",
+      "nurturing_candidates": "转入长期孵化培育的线索列表。",
+      "process_summary_report": "全流程执行与结果汇总报告。"
+    },
+    "steps": [
+      {
+        "id": "start",
+        "type": "start",
+        "config": {}
+      },
+      {
+        "id": "input_check",
+        "type": "code",
+        "config": {
+          "language": "python",
+          "script": "import json\nimport sys\n\ndef main(inputs):\n    raw_leads = inputs.get('raw_leads_data')\n    budget = inputs.get('budget_threshold')\n    \n    if not raw_leads:\n        return {'status': 'error', 'message': '原始线索数据为必填项'}\n    \n    try:\n        budget_val = float(budget) if budget else 0\n    except:\n        return {'status': 'error', 'message': '预算分流阈值需为数字'}\n    \n    return {'status': 'success', 'raw_leads': raw_leads, 'budget_threshold': budget_val}",
+          "example_key": "parse_json",
+          "variables": {
+            "raw_leads_data": "{{inputs.raw_leads_data}}",
+            "budget_threshold": "{{inputs.budget_threshold}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "data_cleaner",
+        "type": "code",
+        "config": {
+          "language": "python",
+          "script": "import pandas as pd\nimport json\n\ndef main(inputs):\n    raw_data = inputs.get('raw_leads')\n    \n    # 模拟数据清洗\n    df = pd.DataFrame(raw_data)\n    \n    # 去重、填充缺失值、格式化字段\n    df_clean = df.drop_duplicates(subset=['email', 'phone'])\n    df_clean['company'] = df_clean['company'].fillna('未知')\n    df_clean['industry'] = df_clean['industry'].fillna('其他')\n    \n    cleaned_list = df_clean.to_dict('records')\n    return {'cleaned_leads': cleaned_list}",
+          "example_key": "clean_text",
+          "variables": {
+            "raw_leads": "{{steps.input_check.output.raw_leads}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "lead_scoring",
+        "type": "llm",
+        "config": {
+          "prompt": "你是一个线索评分专家。请根据以下线索信息和评分规则，为每条线索计算综合得分（0-100分）。\n\n线索数据：{{steps.data_cleaner.output.cleaned_leads}}\n\n评分规则：{{inputs.scoring_criteria}}\n\n来源优先级：{{inputs.source_priority_list}}\n\n请输出JSON格式：{\"scored_leads\": [{\"id\": 1, \"name\": \"xxx\", \"score\": 85, \"level\": \"A\"}, ...]}，其中level根据分数划分：A(>=80), B(60-79), C(<60)",
+          "variables": {
+            "cleaned_leads": "{{steps.data_cleaner.output.cleaned_leads}}",
+            "scoring_criteria": "{{inputs.scoring_criteria}}",
+            "source_priority_list": "{{inputs.source_priority_list}}"
+          },
+          "model": "deepseek-chat"
+        }
+      },
+      {
+        "id": "budget_split",
+        "type": "ifelse",
+        "config": {
+          "condition": "{{steps.lead_scoring.output.scored_leads}}",
+          "cases": [
+            {
+              "id": "vip",
+              "name": "VIP线索",
+              "condition": "item.score >= 90"
+            },
+            {
+              "id": "high",
+              "name": "高预算线索",
+              "condition": "item.score >= 70 and item.budget >= {{steps.input_check.output.budget_threshold}}"
+            },
+            {
+              "id": "public",
+              "name": "公海池线索",
+              "condition": "true"
+            }
+          ]
+        }
+      },
+      {
+        "id": "vip_assignment",
+        "type": "tool",
+        "config": {
+          "method": "post",
+          "url": "http://example.com/api/vip-assign",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "leads": "{{steps.lead_scoring.output.scored_leads}}",
+            "type": "vip"
+          },
+          "variables": {
+            "scored_leads": "{{steps.lead_scoring.output.scored_leads}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "public_distribution",
+        "type": "tool",
+        "config": {
+          "method": "post",
+          "url": "http://example.com/api/public-distribute",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "leads": "{{steps.lead_scoring.output.scored_leads}}",
+            "type": "public"
+          },
+          "variables": {
+            "scored_leads": "{{steps.lead_scoring.output.scored_leads}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "aggregate_distribution",
+        "type": "variable_aggregator",
+        "config": {
+          "variables": {
+            "vip_log": "{{steps.vip_assignment.output}}",
+            "public_log": "{{steps.public_distribution.output}}"
+          }
+        }
+      },
+      {
+        "id": "followup_monitor",
+        "type": "code",
+        "config": {
+          "language": "python",
+          "script": "import datetime\nimport json\n\ndef main(inputs):\n    distribution_log = inputs.get('distribution_log')\n    timeout_hours = inputs.get('timeout_duration', 24)\n    \n    alerts = []\n    current_time = datetime.datetime.now()\n    \n    for lead in distribution_log.get('assigned_leads', []):\n        assign_time = datetime.datetime.fromisoformat(lead['assign_time'])\n        time_diff = (current_time - assign_time).total_seconds() / 3600\n        \n        if time_diff > timeout_hours and not lead.get('contacted'):\n            alerts.append({\n                'lead_id': lead['id'],\n                'sales_rep': lead['sales_rep'],\n                'assign_time': lead['assign_time'],\n                'timeout_hours': round(time_diff, 1)\n            })\n    \n    return {'timeout_alerts': alerts}",
+          "example_key": "parse_json",
+          "variables": {
+            "distribution_log": "{{steps.aggregate_distribution.output}}",
+            "timeout_duration": "{{inputs.timeout_duration}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "first_contact",
+        "type": "llm",
+        "config": {
+          "prompt": "销售代表已完成首次触达。请根据以下触达记录，分析触达结果并分类：\n\n触达记录：{{steps.followup_monitor.output.contact_records}}\n\n请输出JSON格式：{\"first_contact_results\": {\"interested\": [...], \"needs_nurturing\": [...], \"not_interested\": [...]}}",
+          "variables": {
+            "contact_records": "{{steps.followup_monitor.output.contact_records}}"
+          },
+          "model": "deepseek-chat"
+        }
+      },
+      {
+        "id": "opportunity_check",
+        "type": "ifelse",
+        "config": {
+          "condition": "{{steps.first_contact.output.first_contact_results}}",
+          "cases": [
+            {
+              "id": "convert",
+              "name": "转化商机",
+              "condition": "item.status == 'interested' and item.budget >= {{steps.input_check.output.budget_threshold}}"
+            },
+            {
+              "id": "nurture",
+              "name": "培育孵化",
+              "condition": "item.status == 'needs_nurturing'"
+            },
+            {
+              "id": "defeat",
+              "name": "标记战败",
+              "condition": "item.status == 'not_interested'"
+            }
+          ]
+        }
+      },
+      {
+        "id": "generate_report",
+        "type": "template",
+        "config": {
+          "template": "# 市场活动线索全生命周期管理报告\n\n## 执行概览\n- 处理线索总数：{{total_leads}}\n- 清洗后线索数：{{cleaned_count}}\n- VIP线索数：{{vip_count}}\n- 公海池分发数：{{public_count}}\n\n## 评分分布\n{{scoring_summary}}\n\n## 跟进情况\n- 超时预警：{{timeout_alerts_count}}条\n- 首次触达成功率：{{first_contact_rate}}%\n\n## 转化结果\n- 正式商机：{{opportunity_count}}个\n- 战败归档：{{defeated_count}}个\n- 培育孵化：{{nurturing_count}}个\n\n## 建议与优化\n{{recommendations}}",
+          "variables": {
+            "total_leads": "{{steps.data_cleaner.output.total_count}}",
+            "cleaned_count": "{{steps.data_cleaner.output.cleaned_count}}",
+            "vip_count": "{{steps.vip_assignment.output.assigned_count}}",
+            "public_count": "{{steps.public_distribution.output.distributed_count}}",
+            "scoring_summary": "{{steps.lead_scoring.output.summary}}",
+            "timeout_alerts_count": "{{steps.followup_monitor.output.alerts_count}}",
+            "first_contact_rate": "{{steps.first_contact.output.success_rate}}",
+            "opportunity_count": "{{steps.opportunity_check.output.convert_count}}",
+            "defeated_count": "{{steps.opportunity_check.output.defeat_count}}",
+            "nurturing_count": "{{steps.opportunity_check.output.nurture_count}}",
+            "recommendations": "{{steps.llm_optimization.output.recommendations}}"
+          }
+        }
+      },
+      {
+        "id": "answer",
+        "type": "answer",
+        "config": {}
+      },
+      {
+        "id": "llm_fallback_ded09404",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_2d8cea0e",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "llm_fallback_85d3c65b",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_85dc5e99",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "llm_fallback_f68ec331",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_5535066a",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "llm_fallback_c31f463b",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_2d8f66c4",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "llm_fallback_5c33d781",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_bbcbc144",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "agg_dd27ecc8",
+        "type": "variable_aggregator",
+        "title": "分支汇合",
+        "config": {}
+      }
+    ],
+    "edges": [
+      {
+        "source": "agg_2d8cea0e",
+        "target": "data_cleaner"
+      },
+      {
+        "source": "agg_2d8f66c4",
+        "target": "aggregate_distribution"
+      },
+      {
+        "source": "agg_5535066a",
+        "target": "aggregate_distribution"
+      },
+      {
+        "source": "agg_85dc5e99",
+        "target": "lead_scoring"
+      },
+      {
+        "source": "agg_bbcbc144",
+        "target": "first_contact"
+      },
+      {
+        "source": "agg_dd27ecc8",
+        "target": "answer"
+      },
+      {
+        "source": "aggregate_distribution",
+        "target": "followup_monitor"
+      },
+      {
+        "source": "budget_split",
+        "target": "agg_dd27ecc8",
+        "branch": "high"
+      },
+      {
+        "source": "budget_split",
+        "target": "public_distribution",
+        "branch": "public"
+      },
+      {
+        "source": "budget_split",
+        "target": "vip_assignment",
+        "branch": "vip"
+      },
+      {
+        "source": "data_cleaner",
+        "target": "agg_85dc5e99",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "data_cleaner",
+        "target": "llm_fallback_85d3c65b",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "first_contact",
+        "target": "opportunity_check"
+      },
+      {
+        "source": "followup_monitor",
+        "target": "agg_bbcbc144",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "followup_monitor",
+        "target": "llm_fallback_5c33d781",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "generate_report",
+        "target": "agg_dd27ecc8"
+      },
+      {
+        "source": "input_check",
+        "target": "agg_2d8cea0e",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "input_check",
+        "target": "llm_fallback_ded09404",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "lead_scoring",
+        "target": "budget_split"
+      },
+      {
+        "source": "llm_fallback_5c33d781",
+        "target": "agg_bbcbc144"
+      },
+      {
+        "source": "llm_fallback_85d3c65b",
+        "target": "agg_85dc5e99"
+      },
+      {
+        "source": "llm_fallback_c31f463b",
+        "target": "agg_2d8f66c4"
+      },
+      {
+        "source": "llm_fallback_ded09404",
+        "target": "agg_2d8cea0e"
+      },
+      {
+        "source": "llm_fallback_f68ec331",
+        "target": "agg_5535066a"
+      },
+      {
+        "source": "opportunity_check",
+        "target": "generate_report",
+        "branch": "convert"
+      },
+      {
+        "source": "opportunity_check",
+        "target": "generate_report",
+        "branch": "defeat"
+      },
+      {
+        "source": "opportunity_check",
+        "target": "generate_report",
+        "branch": "nurture"
+      },
+      {
+        "source": "public_distribution",
+        "target": "agg_2d8f66c4",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "public_distribution",
+        "target": "llm_fallback_c31f463b",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "start",
+        "target": "input_check"
+      },
+      {
+        "source": "vip_assignment",
+        "target": "agg_5535066a",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "vip_assignment",
+        "target": "llm_fallback_f68ec331",
+        "source_handle": "fail-branch"
+      }
+    ],
+    "meta": {
+      "inserted_aggregators": 1,
+      "planning_mode": "llm_v2",
+      "model": "deepseek-chat",
+      "provider": "deepseek",
+      "prompt_version": "v2.1",
+      "schema_version": "wf-spec.v2",
+      "score": 94.166,
+      "selected_candidate_id": "cand_1",
+      "complexity_level": "complex",
+      "candidate_count": 3
+    },
+    "requirement_meta": {
+      "app_name": "市场活动线索全生命周期管理",
+      "description": "通过自动化与人工协作结合的方式，高效处理从多渠道采集的原始线索，实现从获取到转化（或沉淀）的全过程精细化管控。",
+      "scene": "generic",
+      "user_goal": "对市场活动获取的线索进行清洗、评分、分流、跟进、转化或沉淀的全生命周期管理，提升线索转化效率并防止流失。",
+      "inputs": [
+        {
+          "name": "raw_leads_data",
+          "label": "原始线索数据",
+          "type": "file",
+          "required": true
+        },
+        {
+          "name": "scoring_criteria",
+          "label": "智能评分规则/模型",
+          "type": "file",
+          "required": false
+        },
+        {
+          "name": "budget_threshold",
+          "label": "预算分流阈值",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "source_priority_list",
+          "label": "线索来源优先级列表",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "timeout_duration",
+          "label": "销售跟进超时时长（小时）",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "nurturing_strategy",
+          "label": "长期孵化培育策略",
+          "type": "paragraph",
+          "required": false
+        }
+      ],
+      "output_contract": {
+        "cleaned_leads": "清洗并格式化后的线索数据列表。",
+        "scored_leads": "带有智能评分的线索列表。",
+        "vip_leads_assignment_log": "VIP线索手动指派记录。",
+        "public_leads_distribution_log": "公海池线索自动匹配分发记录。",
+        "timeout_alerts": "销售跟进超时预警列表。",
+        "first_contact_results": "首次触达结果汇总。",
+        "formal_opportunities": "转化为正式商机的线索列表。",
+        "defeated_archives": "标记为战败并归档的线索列表。",
+        "nurturing_candidates": "转入长期孵化培育的线索列表。",
+        "process_summary_report": "全流程执行与结果汇总报告。"
+      },
+      "capabilities": [
+        "input_check",
+        "intent_analysis",
+        "planning",
+        "retrieval",
+        "code_execution",
+        "tool_call",
+        "branching",
+        "generation",
+        "optimization",
+        "formatting"
+      ],
+      "node_preferences": {
+        "target_node_count": 12,
+        "need_private_kb": false,
+        "need_code_node": true,
+        "need_tools": true,
+        "need_branching": true
+      },
+      "runtime_config": {
+        "max_execution_time": "30m",
+        "retry_attempts": 2,
+        "concurrent_branches": true,
+        "model_tier": "deepseek-chat"
+      },
+      "constraints": []
+    }
+  }
+}

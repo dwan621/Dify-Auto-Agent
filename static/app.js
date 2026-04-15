@@ -1,4 +1,4 @@
-﻿let currentSceneKey = "generic";
+﻿﻿let currentSceneKey = "generic";
 let currentWorkflowSpec = null;
 let currentRequirement = null;
 let currentSceneLabel = "暂无";

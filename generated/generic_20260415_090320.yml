@@ -1,0 +1,996 @@
+app:
+  description: 每日定时处理FTP服务器上的CSV日志文件，包括数据读取、清洗转换、地理位置信息补全、数据入库、业务规则判断、风险告警、报表生成以及执行结果汇总与回传。支持异常捕获与断点续传。
+  icon: 🤖
+  icon_background: '#FFEAD5'
+  mode: advanced-chat
+  name: 自动化数据处理与监控系统
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/deepseek:0.0.11@35bcd3f233f99d07bdadef8b326945df3bda5e8f773330144bc90d84800336b9
+    version: null
+kind: app
+version: 0.6.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: false
+      fileUploadConfig:
+        attachment_image_file_size_limit: 2
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        file_upload_limit: 20
+        image_file_batch_limit: 10
+        image_file_size_limit: 10
+        single_chunk_attachment_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: code
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: agg_04b873d8-source-agg_a8837af5-target
+      source: agg_04b873d8
+      sourceHandle: source
+      target: agg_a8837af5
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: agg_7a048b4b-source-agg_a8837af5-target
+      source: agg_7a048b4b
+      sourceHandle: source
+      target: agg_a8837af5
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: agg_9b97eb84-source-agg_a8837af5-target
+      source: agg_9b97eb84
+      sourceHandle: source
+      target: agg_a8837af5
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: template-transform
+        isInIteration: false
+        isInLoop: false
+      id: agg_a8837af5-source-error_handling-target
+      source: agg_a8837af5
+      sourceHandle: source
+      target: error_handling
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: answer
+        isInIteration: false
+        isInLoop: false
+      id: aggregate_results-source-final_answer-target
+      source: aggregate_results
+      sourceHandle: source
+      target: final_answer
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: data_cleaning-success-branch-agg_04b873d8-target
+      source: data_cleaning
+      sourceHandle: success-branch
+      target: agg_04b873d8
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: llm
+        isInIteration: false
+        isInLoop: false
+      id: data_cleaning-fail-branch-llm_fallback_302a3399-target
+      source: data_cleaning
+      sourceHandle: fail-branch
+      target: llm_fallback_302a3399
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: data_validation-quality_fail-agg_a8837af5-target
+      source: data_validation
+      sourceHandle: quality_fail
+      target: agg_a8837af5
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+        isInLoop: false
+      id: data_validation-quality_pass-risk_analysis-target
+      source: data_validation
+      sourceHandle: quality_pass
+      target: risk_analysis
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: error_handling-source-aggregate_results-target
+      source: error_handling
+      sourceHandle: source
+      target: aggregate_results
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: ftp_download-success-branch-agg_9b97eb84-target
+      source: ftp_download
+      sourceHandle: success-branch
+      target: agg_9b97eb84
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: ftp_download-source-data_cleaning-target
+      source: ftp_download
+      sourceHandle: source
+      target: data_cleaning
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: llm
+        isInIteration: false
+        isInLoop: false
+      id: ftp_download-fail-branch-llm_fallback_41cea660-target
+      source: ftp_download
+      sourceHandle: fail-branch
+      target: llm_fallback_41cea660
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: llm_fallback_302a3399-source-agg_04b873d8-target
+      source: llm_fallback_302a3399
+      sourceHandle: source
+      target: agg_04b873d8
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: llm_fallback_41cea660-source-agg_9b97eb84-target
+      source: llm_fallback_41cea660
+      sourceHandle: source
+      target: agg_9b97eb84
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: llm_fallback_d48415e0-source-agg_7a048b4b-target
+      source: llm_fallback_d48415e0
+      sourceHandle: source
+      target: agg_7a048b4b
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: report_generation-source-aggregate_results-target
+      source: report_generation
+      sourceHandle: source
+      target: aggregate_results
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+        isInLoop: false
+      id: risk_analysis-source-report_generation-target
+      source: risk_analysis
+      sourceHandle: source
+      target: report_generation
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: start
+        targetType: http-request
+        isInIteration: false
+        isInLoop: false
+      id: start-source-ftp_download-target
+      source: start
+      sourceHandle: source
+      target: ftp_download
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: data_cleaning-source-agg_7a048b4b-target
+      source: data_cleaning
+      sourceHandle: source
+      target: agg_7a048b4b
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+        isInLoop: false
+      id: data_cleaning-source-data_validation-target
+      source: data_cleaning
+      sourceHandle: source
+      target: data_validation
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: llm
+        isInIteration: false
+        isInLoop: false
+      id: data_cleaning-source-llm_fallback_d48415e0-target
+      source: data_cleaning
+      sourceHandle: source
+      target: llm_fallback_d48415e0
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        selected: false
+        title: start
+        type: start
+        variables:
+        - default: ''
+          hint: ''
+          label: FTP服务器配置
+          options: []
+          placeholder: ''
+          required: true
+          type: text-input
+          variable: ftp_config
+        - default: ''
+          hint: ''
+          label: 地理位置API密钥
+          options: []
+          placeholder: ''
+          required: true
+          type: text-input
+          variable: api_key
+        - default: ''
+          hint: ''
+          label: 云数据库连接字符串
+          options: []
+          placeholder: ''
+          required: true
+          type: text-input
+          variable: db_connection
+        - default: ''
+          hint: ''
+          label: 告警邮件接收人
+          options: []
+          placeholder: ''
+          required: false
+          type: text-input
+          variable: alert_recipients
+        - default: ''
+          hint: ''
+          label: 监控平台回传地址
+          options: []
+          placeholder: ''
+          required: true
+          type: text-input
+          variable: monitoring_platform_url
+      height: 72
+      id: start
+      position:
+        x: 80
+        y: 280
+      positionAbsolute:
+        x: 80
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          type: none
+          data: []
+        headers: ''
+        method: get
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 100
+        selected: true
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: ftp_download
+        type: http-request
+        url: https://httpbin.org/get
+        variables: []
+        error_strategy: fail-branch
+      height: 80
+      id: ftp_download
+      position:
+        x: 380
+        y: 280
+      positionAbsolute:
+        x: 380
+        y: 280
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        code: "import pandas as pd\nimport json\n\ndef clean_data(csv_content):\n\
+          \    # 读取CSV数据\n    df = pd.read_csv(pd.compat.StringIO(csv_content))\n\
+          \    \n    # 清洗操作\n    df = df.dropna(subset=['user_id', 'timestamp']) \
+          \ # 删除关键字段缺失的行\n    df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')\n\
+          \    df = df.dropna(subset=['timestamp'])  # 删除时间格式错误行\n    \n    # 标准化文本字段\n\
+          \    if 'action' in df.columns:\n        df['action'] = df['action'].str.strip().str.lower()\n\
+          \    \n    # 返回清洗后的数据\n    return df.to_dict(orient='records'), len(df)\n\
+          \n# 执行清洗\ncleaned_data, record_count = clean_data(input_data)\noutput =\
+          \ {\n    'cleaned_data': cleaned_data,\n    'record_count': record_count,\n\
+          \    'status': 'success'\n}\n"
+        code_language: python
+        outputs:
+          result:
+            type: string
+            children: null
+        selected: false
+        title: data_cleaning
+        type: code
+        variables:
+        - variable: input_text
+          value_selector:
+          - start
+          - ftp_config
+        error_strategy: fail-branch
+      height: 51
+      id: data_cleaning
+      position:
+        x: 680
+        y: 280
+      positionAbsolute:
+        x: 680
+        y: 280
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        cases:
+        - case_id: quality_pass
+          id: quality_pass
+          logical_operator: or
+          conditions:
+          - id: cond_07293779
+            varType: string
+            comparison_operator: contains
+            value: quality_pass
+            variable_selector:
+            - data_cleaning
+            - text
+        - case_id: quality_fail
+          id: quality_fail
+          logical_operator: or
+          conditions:
+          - id: cond_2ace86a8
+            varType: string
+            comparison_operator: contains
+            value: quality_fail
+            variable_selector:
+            - data_cleaning
+            - text
+        selected: false
+        title: data_validation
+        type: if-else
+      height: 99
+      id: data_validation
+      position:
+        x: 980
+        y: 280
+      positionAbsolute:
+        x: 980
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            {{#sys.files#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: false
+            size: 10
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: deepseek-chat
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - role: system
+          text: '请根据用户输入完成任务。
+
+
+            用户输入：
+
+            - ftp_config: {{#start.ftp_config#}}
+
+            - api_key: {{#start.api_key#}}
+
+            - db_connection: {{#start.db_connection#}}
+
+            - alert_recipients: {{#start.alert_recipients#}}
+
+            - monitoring_platform_url: {{#start.monitoring_platform_url#}}'
+        selected: false
+        title: risk_analysis
+        type: llm
+        vision:
+          enabled: false
+      height: 87
+      id: risk_analysis
+      position:
+        x: 1280
+        y: 280
+      positionAbsolute:
+        x: 1280
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        selected: true
+        template: '【最终结果】
+
+          {{ arg1 }}'
+        title: report_generation
+        type: template-transform
+        variables:
+        - variable: arg1
+          value_selector:
+          - risk_analysis
+          - text
+      height: 51
+      id: report_generation
+      position:
+        x: 1580
+        y: 280
+      positionAbsolute:
+        x: 1580
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        code: "\nimport json\n\ndef main(arg1: str = \"\", arg2: str = \"\"):\n  \
+          \  values = []\n    values.append(arg1)\n    values.append(arg2)\n    for\
+          \ v in values:\n        if v is None:\n            continue\n        if\
+          \ isinstance(v, str) and v.strip():\n            return {\"output\": v}\n\
+          \        if not isinstance(v, str):\n            try:\n                s\
+          \ = json.dumps(v, ensure_ascii=False)\n                if isinstance(s,\
+          \ str) and s.strip():\n                    return {\"output\": s}\n    \
+          \        except Exception:\n                pass\n    return {\"output\"\
+          : \"\"}\n"
+        code_language: python3
+        outputs:
+          output:
+            type: string
+            children: null
+        selected: false
+        title: aggregate_results
+        type: code
+        variables:
+        - variable: arg1
+          value_selector:
+          - error_handling
+          - output
+        - variable: arg2
+          value_selector:
+          - report_generation
+          - output
+      height: 51
+      id: aggregate_results
+      position:
+        x: 1880
+        y: 280
+      positionAbsolute:
+        x: 1880
+        y: 280
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        answer: '{{#aggregate_results.output#}}'
+        selected: false
+        title: final_answer
+        type: answer
+        variables: []
+      height: 102
+      id: final_answer
+      position:
+        x: 2180
+        y: 280
+      positionAbsolute:
+        x: 2180
+        y: 280
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        selected: true
+        template: '【最终结果】
+
+          {{ arg1 }}'
+        title: error_handling
+        type: template-transform
+        variables:
+        - variable: arg1
+          value_selector:
+          - agg_a8837af5
+          - output
+      height: 51
+      id: error_handling
+      position:
+        x: 2480
+        y: 280
+      positionAbsolute:
+        x: 2480
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            {{#sys.files#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: false
+            size: 10
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: deepseek-chat
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - role: system
+          text: '上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。
+
+
+            用户输入：
+
+            - ftp_config: {{#start.ftp_config#}}
+
+            - api_key: {{#start.api_key#}}
+
+            - db_connection: {{#start.db_connection#}}
+
+            - alert_recipients: {{#start.alert_recipients#}}
+
+            - monitoring_platform_url: {{#start.monitoring_platform_url#}}
+
+
+            上游节点输出结果：
+
+            - ftp_download: {{#ftp_download.body#}}'
+        selected: false
+        title: 失败兜底
+        type: llm
+        vision:
+          enabled: false
+      height: 87
+      id: llm_fallback_41cea660
+      position:
+        x: 2780
+        y: 280
+      positionAbsolute:
+        x: 2780
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        code: "\nimport json\n\ndef main(arg1: str = \"\", arg2: str = \"\"):\n  \
+          \  values = []\n    values.append(arg1)\n    values.append(arg2)\n    for\
+          \ v in values:\n        if v is None:\n            continue\n        if\
+          \ isinstance(v, str) and v.strip():\n            return {\"output\": v}\n\
+          \        if not isinstance(v, str):\n            try:\n                s\
+          \ = json.dumps(v, ensure_ascii=False)\n                if isinstance(s,\
+          \ str) and s.strip():\n                    return {\"output\": s}\n    \
+          \        except Exception:\n                pass\n    return {\"output\"\
+          : \"\"}\n"
+        code_language: python3
+        outputs:
+          output:
+            type: string
+            children: null
+        selected: false
+        title: 结果汇合
+        type: code
+        variables:
+        - variable: arg1
+          value_selector:
+          - ftp_download
+          - body
+        - variable: arg2
+          value_selector:
+          - llm_fallback_41cea660
+          - text
+      height: 51
+      id: agg_9b97eb84
+      position:
+        x: 3080
+        y: 280
+      positionAbsolute:
+        x: 3080
+        y: 280
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            {{#sys.files#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: false
+            size: 10
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: deepseek-chat
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - role: system
+          text: '上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。
+
+
+            用户输入：
+
+            - ftp_config: {{#start.ftp_config#}}
+
+            - api_key: {{#start.api_key#}}
+
+            - db_connection: {{#start.db_connection#}}
+
+            - alert_recipients: {{#start.alert_recipients#}}
+
+            - monitoring_platform_url: {{#start.monitoring_platform_url#}}
+
+
+            上游节点输出结果：
+
+            - data_cleaning: {{#data_cleaning.result#}}'
+        selected: false
+        title: 失败兜底
+        type: llm
+        vision:
+          enabled: false
+      height: 87
+      id: llm_fallback_302a3399
+      position:
+        x: 3380
+        y: 280
+      positionAbsolute:
+        x: 3380
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        code: "\nimport json\n\ndef main(arg1: str = \"\", arg2: str = \"\"):\n  \
+          \  values = []\n    values.append(arg1)\n    values.append(arg2)\n    for\
+          \ v in values:\n        if v is None:\n            continue\n        if\
+          \ isinstance(v, str) and v.strip():\n            return {\"output\": v}\n\
+          \        if not isinstance(v, str):\n            try:\n                s\
+          \ = json.dumps(v, ensure_ascii=False)\n                if isinstance(s,\
+          \ str) and s.strip():\n                    return {\"output\": s}\n    \
+          \        except Exception:\n                pass\n    return {\"output\"\
+          : \"\"}\n"
+        code_language: python3
+        outputs:
+          output:
+            type: string
+            children: null
+        selected: false
+        title: 结果汇合
+        type: code
+        variables:
+        - variable: arg1
+          value_selector:
+          - data_cleaning
+          - result
+        - variable: arg2
+          value_selector:
+          - llm_fallback_302a3399
+          - text
+      height: 51
+      id: agg_04b873d8
+      position:
+        x: 3680
+        y: 280
+      positionAbsolute:
+        x: 3680
+        y: 280
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            {{#sys.files#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: false
+            size: 10
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: deepseek-chat
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - role: system
+          text: '上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。
+
+
+            用户输入：
+
+            - ftp_config: {{#start.ftp_config#}}
+
+            - api_key: {{#start.api_key#}}
+
+            - db_connection: {{#start.db_connection#}}
+
+            - alert_recipients: {{#start.alert_recipients#}}
+
+            - monitoring_platform_url: {{#start.monitoring_platform_url#}}
+
+
+            上游节点输出结果：
+
+            - data_cleaning: {{#data_cleaning.result#}}'
+        selected: false
+        title: 失败兜底
+        type: llm
+        vision:
+          enabled: false
+      height: 87
+      id: llm_fallback_d48415e0
+      position:
+        x: 3980
+        y: 280
+      positionAbsolute:
+        x: 3980
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        code: "\nimport json\n\ndef main(arg1: str = \"\", arg2: str = \"\"):\n  \
+          \  values = []\n    values.append(arg1)\n    values.append(arg2)\n    for\
+          \ v in values:\n        if v is None:\n            continue\n        if\
+          \ isinstance(v, str) and v.strip():\n            return {\"output\": v}\n\
+          \        if not isinstance(v, str):\n            try:\n                s\
+          \ = json.dumps(v, ensure_ascii=False)\n                if isinstance(s,\
+          \ str) and s.strip():\n                    return {\"output\": s}\n    \
+          \        except Exception:\n                pass\n    return {\"output\"\
+          : \"\"}\n"
+        code_language: python3
+        outputs:
+          output:
+            type: string
+            children: null
+        selected: false
+        title: 结果汇合
+        type: code
+        variables:
+        - variable: arg1
+          value_selector:
+          - llm_fallback_d48415e0
+          - text
+        - variable: arg2
+          value_selector:
+          - data_cleaning
+          - result
+      height: 51
+      id: agg_7a048b4b
+      position:
+        x: 4280
+        y: 280
+      positionAbsolute:
+        x: 4280
+        y: 280
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        code: "\nimport json\n\ndef main(arg1: str = \"\", arg2: str = \"\", arg3:\
+          \ str = \"\", arg4: str = \"\"):\n    values = []\n    values.append(arg1)\n\
+          \    values.append(arg2)\n    values.append(arg3)\n    values.append(arg4)\n\
+          \    for v in values:\n        if v is None:\n            continue\n   \
+          \     if isinstance(v, str) and v.strip():\n            return {\"output\"\
+          : v}\n        if not isinstance(v, str):\n            try:\n           \
+          \     s = json.dumps(v, ensure_ascii=False)\n                if isinstance(s,\
+          \ str) and s.strip():\n                    return {\"output\": s}\n    \
+          \        except Exception:\n                pass\n    return {\"output\"\
+          : \"\"}\n"
+        code_language: python3
+        outputs:
+          output:
+            type: string
+            children: null
+        selected: false
+        title: 分支汇合
+        type: code
+        variables:
+        - variable: arg1
+          value_selector:
+          - agg_04b873d8
+          - output
+        - variable: arg2
+          value_selector:
+          - agg_7a048b4b
+          - output
+        - variable: arg3
+          value_selector:
+          - agg_9b97eb84
+          - output
+        - variable: arg4
+          value_selector:
+          - data_validation
+          - text
+      height: 51
+      id: agg_a8837af5
+      position:
+        x: 4580
+        y: 280
+      positionAbsolute:
+        x: 4580
+        y: 280
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    viewport:
+      x: -159.26539869531166
+      y: 186.60632074709312
+      zoom: 0.7578582832551991
+  rag_pipeline_variables: []

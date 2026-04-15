@@ -1,0 +1,457 @@
+{
+  "timestamp": "2026-04-14T16:04:01.259708",
+  "model_name": "deepseek-chat",
+  "provider": "deepseek",
+  "prompt_version": "v2.1",
+  "schema_version": "wf-spec.v2",
+  "requirement": {
+    "app_name": "智能意图处理工作流",
+    "description": "一个复杂的工作流，先进行意图理解，然后根据意图分支执行检索、工具调用和代码处理，最后统一格式化输出结果",
+    "scene": "generic",
+    "user_goal": "通过意图分析自动选择并执行合适的处理路径（检索、工具调用或代码执行），最终获得格式统一的处理结果",
+    "inputs": [
+      {
+        "name": "user_input",
+        "label": "用户输入",
+        "type": "paragraph",
+        "required": true
+      },
+      {
+        "name": "additional_context",
+        "label": "附加上下文",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "reference_files",
+        "label": "参考文件",
+        "type": "file",
+        "required": false
+      }
+    ],
+    "output_contract": {
+      "format": "structured_json",
+      "fields": [
+        "intent_type",
+        "processed_results",
+        "execution_path",
+        "formatted_output"
+      ]
+    },
+    "capabilities": [
+      "intent_analysis",
+      "planning",
+      "retrieval",
+      "tool_call",
+      "code_execution",
+      "branching",
+      "generation",
+      "formatting"
+    ],
+    "node_preferences": {
+      "target_node_count": 8,
+      "need_private_kb": true,
+      "need_code_node": true,
+      "need_tools": true,
+      "need_branching": true
+    },
+    "runtime_config": {
+      "max_execution_time": 300,
+      "allow_parallel_branches": true,
+      "retry_on_failure": true,
+      "model_tier": "deepseek-chat"
+    },
+    "constraints": [
+      "必须包含意图分析节点",
+      "分支节点必须至少有三个不同处理路径",
+      "最终输出必须统一格式化"
+    ]
+  },
+  "candidate_scores": [
+    {
+      "id": "cand_1",
+      "score": 119.534,
+      "ok": true,
+      "warnings": [],
+      "stats": {
+        "total_nodes": 12,
+        "type_counts": {
+          "start": 1,
+          "llm": 4,
+          "ifelse": 1,
+          "knowledge_retrieval": 1,
+          "tool": 1,
+          "code": 1,
+          "variable_aggregator": 1,
+          "template": 1,
+          "answer": 1
+        },
+        "non_llm_node_ratio": 0.6667,
+        "has_path_start_to_answer": true
+      },
+      "repair_rounds": 1
+    }
+  ],
+  "selected_candidate_id": "cand_1",
+  "selected_spec": {
+    "workflow_name": "智能意图处理工作流",
+    "description": "通过意图分析自动选择并执行合适的处理路径（检索、工具调用或代码执行），最终获得格式统一的处理结果",
+    "scene": "generic",
+    "inputs": [
+      {
+        "name": "user_input",
+        "label": "用户输入",
+        "type": "paragraph",
+        "required": true
+      },
+      {
+        "name": "additional_context",
+        "label": "附加上下文",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "reference_files",
+        "label": "参考文件",
+        "type": "file",
+        "required": false
+      }
+    ],
+    "output_contract": {
+      "format": "structured_json",
+      "fields": [
+        "intent_type",
+        "processed_results",
+        "execution_path",
+        "formatted_output"
+      ]
+    },
+    "steps": [
+      {
+        "id": "start_1",
+        "type": "start",
+        "config": {
+          "input_mapping": {
+            "user_input": "{{inputs.user_input}}",
+            "additional_context": "{{inputs.additional_context}}",
+            "reference_files": "{{inputs.reference_files}}"
+          }
+        }
+      },
+      {
+        "id": "intent_analysis",
+        "type": "llm",
+        "config": {
+          "model": "deepseek-chat",
+          "prompt": "分析用户输入的意图类型。可能的意图类型包括：信息检索（需要从知识库查找信息）、工具调用（需要调用外部API）、数据处理（需要执行代码处理）、综合任务（需要多步骤处理）。请输出JSON格式：{\"intent_type\": \"类型名称\", \"confidence\": 置信度分数, \"reasoning\": \"分析理由\"}",
+          "variables": {
+            "user_input": "{{steps.start_1.output.user_input}}",
+            "additional_context": "{{steps.start_1.output.additional_context}}"
+          }
+        }
+      },
+      {
+        "id": "intent_router",
+        "type": "ifelse",
+        "config": {
+          "condition": "{{steps.intent_analysis.output.intent_type}}",
+          "cases": [
+            {
+              "id": "retrieval_branch",
+              "condition": "信息检索",
+              "description": "需要从知识库检索信息"
+            },
+            {
+              "id": "tool_branch",
+              "condition": "工具调用",
+              "description": "需要调用外部API工具"
+            },
+            {
+              "id": "code_branch",
+              "condition": "数据处理",
+              "description": "需要执行代码处理数据"
+            },
+            {
+              "id": "default_branch",
+              "condition": "default",
+              "description": "其他意图类型，使用LLM直接处理"
+            }
+          ]
+        }
+      },
+      {
+        "id": "knowledge_retrieval",
+        "type": "knowledge_retrieval",
+        "config": {
+          "query": "{{steps.intent_analysis.output.reasoning}} {{steps.start_1.output.user_input}}",
+          "top_k": 5,
+          "score_threshold": 0.7,
+          "variables": {
+            "user_input": "{{steps.start_1.output.user_input}}"
+          }
+        }
+      },
+      {
+        "id": "github_api_tool",
+        "type": "tool",
+        "config": {
+          "method": "get",
+          "url": "https://api.github.com/search/repositories",
+          "headers": {
+            "Accept": "application/vnd.github.v3+json",
+            "User-Agent": "Workflow-Agent"
+          },
+          "body": null,
+          "variables": {
+            "query": "{{steps.start_1.output.user_input}}",
+            "sort": "stars",
+            "order": "desc",
+            "per_page": 3
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "data_processing_code",
+        "type": "code",
+        "config": {
+          "language": "python",
+          "script": "import json\nimport re\n\ndef clean_text(text):\n    \"\"\"清理文本数据\"\"\"\n    if not text:\n        return \"\"\n    # 移除多余空白字符\n    text = re.sub(r'\\s+', ' ', text)\n    # 移除特殊字符但保留基本标点\n    text = re.sub(r'[^\\w\\s.,!?\\-\\:\\;\\(\\)\\[\\]\\{\\}]', '', text)\n    return text.strip()\n\n# 主处理逻辑\ninput_data = {{steps.start_1.output.user_input}}\nif isinstance(input_data, dict):\n    input_data = json.dumps(input_data)\n\ncleaned = clean_text(input_data)\nresult = {\n    \"original_length\": len(input_data),\n    \"cleaned_length\": len(cleaned),\n    \"cleaned_text\": cleaned,\n    \"processing_time\": \"completed\"\n}\noutput = json.dumps(result, ensure_ascii=False)",
+          "example_key": "clean_text",
+          "variables": {
+            "user_input": "{{steps.start_1.output.user_input}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "llm_direct_processing",
+        "type": "llm",
+        "config": {
+          "model": "deepseek-chat",
+          "prompt": "直接处理用户请求：{{steps.start_1.output.user_input}}\n\n附加上下文：{{steps.start_1.output.additional_context}}\n\n请提供详细、准确的回答。",
+          "variables": {
+            "user_input": "{{steps.start_1.output.user_input}}",
+            "additional_context": "{{steps.start_1.output.additional_context}}"
+          }
+        }
+      },
+      {
+        "id": "tool_fallback",
+        "type": "llm",
+        "config": {
+          "model": "deepseek-chat",
+          "prompt": "工具调用失败，请直接处理用户请求：{{steps.start_1.output.user_input}}\n\n失败信息：{{steps.github_api_tool.error}}\n\n请提供替代解决方案。",
+          "variables": {
+            "user_input": "{{steps.start_1.output.user_input}}",
+            "error": "{{steps.github_api_tool.error}}"
+          }
+        }
+      },
+      {
+        "id": "code_fallback",
+        "type": "llm",
+        "config": {
+          "model": "deepseek-chat",
+          "prompt": "代码执行失败，请直接处理用户请求：{{steps.start_1.output.user_input}}\n\n失败信息：{{steps.data_processing_code.error}}\n\n请提供替代解决方案。",
+          "variables": {
+            "user_input": "{{steps.start_1.output.user_input}}",
+            "error": "{{steps.data_processing_code.error}}"
+          }
+        }
+      },
+      {
+        "id": "results_aggregator",
+        "type": "variable_aggregator",
+        "config": {
+          "aggregation_strategy": "merge",
+          "variables": {
+            "intent_analysis": "{{steps.intent_analysis.output}}",
+            "retrieval_results": "{{steps.knowledge_retrieval.output}}",
+            "tool_results": "{{steps.github_api_tool.output}}",
+            "tool_fallback_results": "{{steps.tool_fallback.output}}",
+            "code_results": "{{steps.data_processing_code.output}}",
+            "code_fallback_results": "{{steps.code_fallback.output}}",
+            "llm_results": "{{steps.llm_direct_processing.output}}",
+            "execution_path": "{{steps.intent_router.output.selected_branch}}"
+          }
+        }
+      },
+      {
+        "id": "formatting_template",
+        "type": "template",
+        "config": {
+          "template": "{\n  \"intent_type\": \"{{steps.results_aggregator.output.intent_analysis.intent_type}}\",\n  \"processed_results\": {\n    \"retrieval\": {{steps.results_aggregator.output.retrieval_results | tojson}},\n    \"tool\": {{steps.results_aggregator.output.tool_results | tojson}},\n    \"tool_fallback\": {{steps.results_aggregator.output.tool_fallback_results | tojson}},\n    \"code\": {{steps.results_aggregator.output.code_results | tojson}},\n    \"code_fallback\": {{steps.results_aggregator.output.code_fallback_results | tojson}},\n    \"llm\": {{steps.results_aggregator.output.llm_results | tojson}}\n  },\n  \"execution_path\": \"{{steps.results_aggregator.output.execution_path}}\",\n  \"formatted_output\": \"意图类型'{{steps.results_aggregator.output.intent_analysis.intent_type}}'的处理已完成。置信度：{{steps.results_aggregator.output.intent_analysis.confidence}}。\"\n}",
+          "variables": {
+            "intent_analysis": "{{steps.results_aggregator.output.intent_analysis}}",
+            "retrieval_results": "{{steps.results_aggregator.output.retrieval_results}}",
+            "tool_results": "{{steps.results_aggregator.output.tool_results}}",
+            "tool_fallback_results": "{{steps.results_aggregator.output.tool_fallback_results}}",
+            "code_results": "{{steps.results_aggregator.output.code_results}}",
+            "code_fallback_results": "{{steps.results_aggregator.output.code_fallback_results}}",
+            "llm_results": "{{steps.results_aggregator.output.llm_results}}",
+            "execution_path": "{{steps.results_aggregator.output.execution_path}}"
+          }
+        }
+      },
+      {
+        "id": "final_answer",
+        "type": "answer",
+        "config": {
+          "format": "json",
+          "variables": {
+            "output": "{{steps.formatting_template.output}}"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "code_fallback",
+        "target": "results_aggregator"
+      },
+      {
+        "source": "data_processing_code",
+        "target": "code_fallback",
+        "branch": "fail-branch"
+      },
+      {
+        "source": "data_processing_code",
+        "target": "results_aggregator",
+        "branch": "success-branch"
+      },
+      {
+        "source": "formatting_template",
+        "target": "final_answer"
+      },
+      {
+        "source": "github_api_tool",
+        "target": "results_aggregator",
+        "branch": "success-branch"
+      },
+      {
+        "source": "github_api_tool",
+        "target": "tool_fallback",
+        "branch": "fail-branch"
+      },
+      {
+        "source": "intent_analysis",
+        "target": "intent_router"
+      },
+      {
+        "source": "intent_router",
+        "target": "data_processing_code",
+        "branch": "code_branch"
+      },
+      {
+        "source": "intent_router",
+        "target": "github_api_tool",
+        "branch": "tool_branch"
+      },
+      {
+        "source": "intent_router",
+        "target": "knowledge_retrieval",
+        "branch": "retrieval_branch"
+      },
+      {
+        "source": "intent_router",
+        "target": "llm_direct_processing",
+        "branch": "default_branch"
+      },
+      {
+        "source": "knowledge_retrieval",
+        "target": "results_aggregator"
+      },
+      {
+        "source": "llm_direct_processing",
+        "target": "results_aggregator"
+      },
+      {
+        "source": "results_aggregator",
+        "target": "formatting_template"
+      },
+      {
+        "source": "start_1",
+        "target": "intent_analysis"
+      },
+      {
+        "source": "tool_fallback",
+        "target": "results_aggregator"
+      }
+    ],
+    "meta": {
+      "planning_mode": "llm_v2",
+      "model": "deepseek-chat",
+      "provider": "deepseek",
+      "prompt_version": "v2.1",
+      "schema_version": "wf-spec.v2",
+      "score": 119.534,
+      "selected_candidate_id": "cand_1",
+      "complexity_level": "complex",
+      "candidate_count": 3
+    },
+    "requirement_meta": {
+      "app_name": "智能意图处理工作流",
+      "description": "一个复杂的工作流，先进行意图理解，然后根据意图分支执行检索、工具调用和代码处理，最后统一格式化输出结果",
+      "scene": "generic",
+      "user_goal": "通过意图分析自动选择并执行合适的处理路径（检索、工具调用或代码执行），最终获得格式统一的处理结果",
+      "inputs": [
+        {
+          "name": "user_input",
+          "label": "用户输入",
+          "type": "paragraph",
+          "required": true
+        },
+        {
+          "name": "additional_context",
+          "label": "附加上下文",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "reference_files",
+          "label": "参考文件",
+          "type": "file",
+          "required": false
+        }
+      ],
+      "output_contract": {
+        "format": "structured_json",
+        "fields": [
+          "intent_type",
+          "processed_results",
+          "execution_path",
+          "formatted_output"
+        ]
+      },
+      "capabilities": [
+        "intent_analysis",
+        "planning",
+        "retrieval",
+        "tool_call",
+        "code_execution",
+        "branching",
+        "generation",
+        "formatting"
+      ],
+      "node_preferences": {
+        "target_node_count": 8,
+        "need_private_kb": true,
+        "need_code_node": true,
+        "need_tools": true,
+        "need_branching": true
+      },
+      "runtime_config": {
+        "max_execution_time": 300,
+        "allow_parallel_branches": true,
+        "retry_on_failure": true,
+        "model_tier": "deepseek-chat"
+      },
+      "constraints": [
+        "必须包含意图分析节点",
+        "分支节点必须至少有三个不同处理路径",
+        "最终输出必须统一格式化"
+      ]
+    }
+  }
+}

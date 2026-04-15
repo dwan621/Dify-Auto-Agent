@@ -1,0 +1,565 @@
+{
+  "timestamp": "2026-04-14T16:23:00.960382",
+  "model_name": "deepseek-chat",
+  "provider": "deepseek",
+  "prompt_version": "v2.1",
+  "schema_version": "wf-spec.v2",
+  "requirement": {
+    "app_name": "市场活动线索全生命周期管理",
+    "description": "通过自动化与人工协作结合的方式，高效处理从多渠道采集的原始线索，实现从获取到转化（或沉淀）的全过程精细化管控。",
+    "scene": "generic",
+    "user_goal": "自动化处理多渠道线索，通过清洗、评分、分流、跟进与闭环管理，提升线索转化效率并防止流失。",
+    "inputs": [
+      {
+        "name": "raw_leads_data",
+        "label": "原始线索数据",
+        "type": "file",
+        "required": true
+      },
+      {
+        "name": "budget_threshold",
+        "label": "预算阈值",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "source_criteria",
+        "label": "来源分流标准",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "timeout_duration",
+        "label": "超时时长（小时）",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "output_contract": {
+      "converted_opportunities": "array of objects",
+      "defeated_archives": "array of objects",
+      "nurturing_leads": "array of objects",
+      "processing_report": "object"
+    },
+    "capabilities": [
+      "input_check",
+      "intent_analysis",
+      "planning",
+      "retrieval",
+      "code_execution",
+      "tool_call",
+      "branching",
+      "generation",
+      "optimization",
+      "formatting"
+    ],
+    "node_preferences": {
+      "target_node_count": 12,
+      "need_private_kb": false,
+      "need_code_node": true,
+      "need_tools": true,
+      "need_branching": true
+    },
+    "runtime_config": {
+      "timeout": 72,
+      "concurrency": 5,
+      "model_tier": "deepseek-chat"
+    },
+    "constraints": []
+  },
+  "candidate_scores": [
+    {
+      "id": "cand_1",
+      "score": -33.958,
+      "ok": false,
+      "warnings": [
+        "工具节点 sales_team_assignment url 已重写为白名单地址",
+        "工具节点 marketing_campaign url 已重写为白名单地址",
+        "工具节点 automated_sequence url 已重写为白名单地址",
+        "原始 edges 为空，已按节点顺序自动连边",
+        "节点 marketing_campaign_fail 的非法 type 已改为 llm",
+        "原始 edges 为空，已按节点顺序自动连边",
+        "ifelse source_routing 缺少分支 direct_sales，已补默认连边",
+        "ifelse source_routing 缺少分支 marketing_nurture，已补默认连边",
+        "ifelse source_routing 缺少分支 automated_followup，已补默认连边",
+        "检测到 answer 存在多分支汇入，已插入 variable_aggregator=agg_c580d07a",
+        "ifelse budget_check 缺少分支 high_budget，已补默认连边",
+        "ifelse budget_check 缺少分支 low_budget，已补默认连边",
+        "ifelse source_routing 缺少分支 direct_sales，已补默认连边",
+        "ifelse source_routing 缺少分支 marketing_nurture，已补默认连边",
+        "ifelse source_routing 缺少分支 automated_followup，已补默认连边",
+        "为 format_output 启用 fail-branch 并插入兜底链路（llm_fallback_98d0f009->agg_6563114a->answer）",
+        "检测到 answer 存在多分支汇入，已插入 variable_aggregator=agg_b28d7eba",
+        "ifelse budget_check 缺少分支 high_budget，已补默认连边",
+        "ifelse budget_check 缺少分支 low_budget，已补默认连边",
+        "ifelse source_routing 缺少分支 direct_sales，已补默认连边",
+        "ifelse source_routing 缺少分支 marketing_nurture，已补默认连边",
+        "ifelse source_routing 缺少分支 automated_followup，已补默认连边",
+        "检测到 answer 存在多分支汇入，已插入 variable_aggregator=agg_20f0e1c7"
+      ],
+      "stats": {
+        "total_nodes": 19,
+        "type_counts": {
+          "start": 1,
+          "code": 3,
+          "llm": 3,
+          "ifelse": 2,
+          "tool": 3,
+          "variable_aggregator": 6,
+          "answer": 1
+        },
+        "non_llm_node_ratio": 0.8421,
+        "has_path_start_to_answer": true
+      },
+      "repair_rounds": 2
+    }
+  ],
+  "selected_candidate_id": "cand_1",
+  "selected_spec": {
+    "workflow_name": "市场活动线索全生命周期管理",
+    "description": "通过自动化与人工协作结合的方式，高效处理从多渠道采集的原始线索，实现从获取到转化（或沉淀）的全过程精细化管控。",
+    "scene": "generic",
+    "inputs": [
+      {
+        "name": "raw_leads_data",
+        "label": "原始线索数据",
+        "type": "file",
+        "required": true
+      },
+      {
+        "name": "budget_threshold",
+        "label": "预算阈值",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "source_criteria",
+        "label": "来源分流标准",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "timeout_duration",
+        "label": "超时时长（小时）",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "output_contract": {
+      "converted_opportunities": "array of objects",
+      "defeated_archives": "array of objects",
+      "nurturing_leads": "array of objects",
+      "processing_report": "object"
+    },
+    "steps": [
+      {
+        "id": "start",
+        "type": "start",
+        "config": {}
+      },
+      {
+        "id": "input_validation",
+        "type": "code",
+        "config": {
+          "language": "python",
+          "script": "import json\nimport sys\n\ndef validate_inputs(raw_leads_data, budget_threshold, source_criteria, timeout_duration):\n    errors = []\n    \n    if not raw_leads_data:\n        errors.append(\"原始线索数据不能为空\")\n    \n    try:\n        budget = float(budget_threshold)\n        if budget <= 0:\n            errors.append(\"预算阈值必须大于0\")\n    except:\n        errors.append(\"预算阈值必须是有效数字\")\n    \n    if not source_criteria or source_criteria.strip() == \"\":\n        errors.append(\"来源分流标准不能为空\")\n    \n    if timeout_duration:\n        try:\n            timeout = float(timeout_duration)\n            if timeout <= 0:\n                errors.append(\"超时时长必须大于0\")\n        except:\n            errors.append(\"超时时长必须是有效数字\")\n    \n    return {\n        \"is_valid\": len(errors) == 0,\n        \"errors\": errors,\n        \"budget_threshold\": float(budget_threshold) if budget_threshold else 0,\n        \"timeout_duration\": float(timeout_duration) if timeout_duration else 72\n    }",
+          "variables": {
+            "raw_leads_data": "{{inputs.raw_leads_data}}",
+            "budget_threshold": "{{inputs.budget_threshold}}",
+            "source_criteria": "{{inputs.source_criteria}}",
+            "timeout_duration": "{{inputs.timeout_duration}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "data_cleaning",
+        "type": "code",
+        "config": {
+          "language": "python",
+          "script": "import pandas as pd\nimport json\nimport re\n\ndef clean_leads_data(raw_data):\n    try:\n        # 假设原始数据是CSV格式\n        df = pd.read_csv(raw_data)\n        \n        # 清洗步骤\n        # 1. 去除重复记录\n        df = df.drop_duplicates()\n        \n        # 2. 标准化电话号码格式\n        if 'phone' in df.columns:\n            df['phone'] = df['phone'].astype(str).apply(lambda x: re.sub(r'[^0-9]', '', x))\n        \n        # 3. 标准化邮箱格式\n        if 'email' in df.columns:\n            df['email'] = df['email'].astype(str).str.lower()\n        \n        # 4. 处理缺失值\n        numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns\n        for col in numeric_cols:\n            df[col] = df[col].fillna(df[col].median())\n        \n        text_cols = df.select_dtypes(include=['object']).columns\n        for col in text_cols:\n            df[col] = df[col].fillna('')\n        \n        # 5. 添加清洗标记\n        df['cleaned_at'] = pd.Timestamp.now().isoformat()\n        df['cleaning_status'] = 'success'\n        \n        return {\n            \"status\": \"success\",\n            \"cleaned_data\": df.to_dict('records'),\n            \"record_count\": len(df),\n            \"cleaning_summary\": {\n                \"duplicates_removed\": \"自动处理\",\n                \"format_standardized\": \"电话号码和邮箱已标准化\",\n                \"missing_handled\": \"数值型用中位数填充，文本型用空字符串填充\"\n            }\n        }\n    except Exception as e:\n        return {\n            \"status\": \"error\",\n            \"error\": str(e),\n            \"cleaned_data\": [],\n            \"record_count\": 0\n        }",
+          "example_key": "clean_text",
+          "variables": {
+            "raw_data": "{{steps.input_validation.outputs.raw_leads_data}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "lead_scoring",
+        "type": "llm",
+        "config": {
+          "model": "deepseek-chat",
+          "prompt": "你是一个专业的市场线索评分专家。请根据以下线索信息进行综合评分（0-100分）：\n\n线索数据：{{steps.data_cleaning.outputs.cleaned_data}}\n\n评分维度：\n1. 信息完整性（20分）：姓名、联系方式、公司等基本信息是否完整\n2. 意向强度（30分）：需求描述、时间紧迫性、预算提及等\n3. 匹配度（30分）：与公司产品或服务的匹配程度\n4. 来源质量（20分）：来源渠道的可信度和历史转化率\n\n请为每条线索输出以下JSON格式：\n{\n  \"scored_leads\": [\n    {\n      \"lead_id\": \"原始ID\",\n      \"score\": 0-100,\n      \"score_breakdown\": {\n        \"completeness\": 0-20,\n        \"intention\": 0-30,\n        \"matching\": 0-30,\n        \"source_quality\": 0-20\n      },\n      \"score_reason\": \"简要说明评分理由\",\n      \"priority_level\": \"high/medium/low\"\n    }\n  ],\n  \"scoring_summary\": {\n    \"total_leads\": 数量,\n    \"average_score\": 平均分,\n    \"high_priority_count\": 高优先级数量,\n    \"medium_priority_count\": 中优先级数量,\n    \"low_priority_count\": 低优先级数量\n  }\n}",
+          "variables": {
+            "cleaned_data": "{{steps.data_cleaning.outputs.cleaned_data}}"
+          }
+        }
+      },
+      {
+        "id": "budget_check",
+        "type": "ifelse",
+        "config": {
+          "condition": "{{steps.lead_scoring.outputs.scored_leads}}",
+          "cases": [
+            {
+              "id": "high_budget",
+              "condition": "any(lead.get('budget_mentioned', 0) >= {{steps.input_validation.outputs.budget_threshold}} for lead in {{steps.lead_scoring.outputs.scored_leads}} if 'budget_mentioned' in lead)"
+            },
+            {
+              "id": "low_budget",
+              "condition": "not any(lead.get('budget_mentioned', 0) >= {{steps.input_validation.outputs.budget_threshold}} for lead in {{steps.lead_scoring.outputs.scored_leads}} if 'budget_mentioned' in lead)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "source_routing",
+        "type": "ifelse",
+        "config": {
+          "condition": "{{steps.lead_scoring.outputs.scored_leads}}",
+          "cases": [
+            {
+              "id": "direct_sales",
+              "condition": "lead['score'] >= 70 and lead['priority_level'] == 'high' for lead in {{steps.lead_scoring.outputs.scored_leads}}"
+            },
+            {
+              "id": "marketing_nurture",
+              "condition": "50 <= lead['score'] < 70 for lead in {{steps.lead_scoring.outputs.scored_leads}}"
+            },
+            {
+              "id": "automated_followup",
+              "condition": "lead['score'] < 50 for lead in {{steps.lead_scoring.outputs.scored_leads}}"
+            }
+          ]
+        }
+      },
+      {
+        "id": "sales_team_assignment",
+        "type": "tool",
+        "config": {
+          "method": "post",
+          "url": "https://httpbin.org/get",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "action": "assign_to_sales",
+            "leads": "{{steps.lead_scoring.outputs.scored_leads}}",
+            "criteria": "score >= 70 and priority_level = 'high'",
+            "assignment_rules": "{{inputs.source_criteria}}"
+          },
+          "variables": {
+            "scored_leads": "{{steps.lead_scoring.outputs.scored_leads}}",
+            "source_criteria": "{{inputs.source_criteria}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "marketing_campaign",
+        "type": "tool",
+        "config": {
+          "method": "post",
+          "url": "https://httpbin.org/get",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "action": "start_nurturing_campaign",
+            "leads": "{{steps.lead_scoring.outputs.scored_leads}}",
+            "campaign_type": "educational_content",
+            "duration_days": 30
+          },
+          "variables": {
+            "scored_leads": "{{steps.lead_scoring.outputs.scored_leads}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "automated_sequence",
+        "type": "tool",
+        "config": {
+          "method": "post",
+          "url": "https://httpbin.org/get",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "action": "setup_automated_sequence",
+            "leads": "{{steps.lead_scoring.outputs.scored_leads}}",
+            "sequence_type": "re-engagement",
+            "touchpoints": 3,
+            "interval_days": 7
+          },
+          "variables": {
+            "scored_leads": "{{steps.lead_scoring.outputs.scored_leads}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "aggregate_results",
+        "type": "variable_aggregator",
+        "config": {
+          "variables": {
+            "sales_assigned": "{{steps.sales_team_assignment.outputs}}",
+            "marketing_campaign": "{{steps.marketing_campaign.outputs}}",
+            "automated_sequence": "{{steps.automated_sequence.outputs}}",
+            "scoring_results": "{{steps.lead_scoring.outputs}}",
+            "cleaning_results": "{{steps.data_cleaning.outputs}}"
+          }
+        }
+      },
+      {
+        "id": "generate_report",
+        "type": "llm",
+        "config": {
+          "model": "deepseek-chat",
+          "prompt": "请根据线索处理全流程的结果，生成一份详细的处理报告。\n\n输入数据：\n1. 线索清洗结果：{{steps.aggregate_results.outputs.cleaning_results}}\n2. 线索评分结果：{{steps.aggregate_results.outputs.scoring_results}}\n3. 销售分配结果：{{steps.aggregate_results.outputs.sales_assigned}}\n4. 营销培育结果：{{steps.aggregate_results.outputs.marketing_campaign}}\n5. 自动跟进结果：{{steps.aggregate_results.outputs.automated_sequence}}\n\n请生成包含以下内容的JSON报告：\n{\n  \"processing_report\": {\n    \"execution_summary\": {\n      \"total_leads_processed\": 总数,\n      \"processing_start_time\": \"时间戳\",\n      \"processing_end_time\": \"时间戳\",\n      \"overall_status\": \"success/partial/failed\"\n    },\n    \"pipeline_breakdown\": {\n      \"cleaning\": {\"status\": \"\", \"records_processed\": 0, \"issues_found\": 0},\n      \"scoring\": {\"status\": \"\", \"average_score\": 0, \"distribution\": {}},\n      \"routing\": {\"status\": \"\", \"direct_sales_count\": 0, \"nurturing_count\": 0, \"automated_count\": 0}\n    },\n    \"outcome_categories\": {\n      \"converted_opportunities\": \"分配给销售的优质线索\",\n      \"nurturing_leads\": \"进入培育流程的线索\",\n      \"defeated_archives\": \"低分或无效线索\"\n    },\n    \"recommendations\": [\"建议1\", \"建议2\", \"建议3\"],\n    \"next_steps\": [\"下一步1\", \"下一步2\"]\n  },\n  \"converted_opportunities\": \"高评分线索列表\",\n  \"nurturing_leads\": \"培育中线索列表\",\n  \"defeated_archives\": \"归档线索列表\"\n}",
+          "variables": {
+            "aggregated_data": "{{steps.aggregate_results.outputs}}"
+          }
+        }
+      },
+      {
+        "id": "format_output",
+        "type": "code",
+        "config": {
+          "language": "python",
+          "script": "import json\nfrom datetime import datetime\n\ndef format_final_output(report_data):\n    try:\n        # 解析LLM生成的报告\n        if isinstance(report_data, str):\n            report = json.loads(report_data)\n        else:\n            report = report_data\n        \n        # 确保输出合约格式\n        final_output = {\n            \"converted_opportunities\": report.get(\"converted_opportunities\", []),\n            \"defeated_archives\": report.get(\"defeated_archives\", []),\n            \"nurturing_leads\": report.get(\"nurturing_leads\", []),\n            \"processing_report\": report.get(\"processing_report\", {})\n        }\n        \n        # 添加时间戳\n        final_output[\"processing_report\"][\"generated_at\"] = datetime.now().isoformat()\n        \n        # 验证数据完整性\n        for key in [\"converted_opportunities\", \"defeated_archives\", \"nurturing_leads\"]:\n            if not isinstance(final_output[key], list):\n                final_output[key] = []\n        \n        if not isinstance(final_output[\"processing_report\"], dict):\n            final_output[\"processing_report\"] = {\"error\": \"报告格式无效\"}\n        \n        return {\n            \"status\": \"success\",\n            \"formatted_output\": final_output,\n            \"output_summary\": {\n                \"opportunities_count\": len(final_output[\"converted_opportunities\"]),\n                \"nurturing_count\": len(final_output[\"nurturing_leads\"]),\n                \"archived_count\": len(final_output[\"defeated_archives\"])\n            }\n        }\n    except Exception as e:\n        return {\n            \"status\": \"error\",\n            \"error\": str(e),\n            \"formatted_output\": {\n                \"converted_opportunities\": [],\n                \"defeated_archives\": [],\n                \"nurturing_leads\": [],\n                \"processing_report\": {\"error\": \"输出格式化失败: \" + str(e)}\n            }\n        }",
+          "example_key": "parse_json",
+          "variables": {
+            "report_data": "{{steps.generate_report.outputs}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "answer",
+        "type": "answer",
+        "config": {
+          "answer": "{{steps.format_output.outputs.formatted_output}}"
+        }
+      },
+      {
+        "id": "agg_c580d07a",
+        "type": "variable_aggregator",
+        "title": "分支汇合",
+        "config": {}
+      },
+      {
+        "id": "input_validation_fail",
+        "type": "variable_aggregator",
+        "config": {
+          "variables": {
+            "error": "{{steps.input_validation.outputs.errors}}"
+          }
+        }
+      },
+      {
+        "id": "data_cleaning_fail",
+        "type": "variable_aggregator",
+        "config": {
+          "variables": {
+            "error": "{{steps.data_cleaning.outputs.error}}"
+          }
+        }
+      },
+      {
+        "id": "sales_team_assignment_fail",
+        "type": "variable_aggregator",
+        "config": {
+          "variables": {
+            "error": "{{steps.sales_team_assignment.outputs}}"
+          }
+        }
+      },
+      {
+        "id": "marketing_campaign_fail",
+        "type": "llm"
+      },
+      {
+        "id": "agg_20f0e1c7",
+        "type": "variable_aggregator",
+        "title": "分支汇合",
+        "config": {}
+      }
+    ],
+    "edges": [
+      {
+        "source": "agg_20f0e1c7",
+        "target": "answer"
+      },
+      {
+        "source": "agg_c580d07a",
+        "target": "input_validation_fail"
+      },
+      {
+        "source": "aggregate_results",
+        "target": "generate_report"
+      },
+      {
+        "source": "answer",
+        "target": "agg_c580d07a"
+      },
+      {
+        "source": "automated_sequence",
+        "target": "aggregate_results"
+      },
+      {
+        "source": "budget_check",
+        "target": "agg_20f0e1c7",
+        "branch": "high_budget"
+      },
+      {
+        "source": "budget_check",
+        "target": "agg_20f0e1c7",
+        "branch": "low_budget"
+      },
+      {
+        "source": "budget_check",
+        "target": "source_routing"
+      },
+      {
+        "source": "data_cleaning",
+        "target": "lead_scoring"
+      },
+      {
+        "source": "data_cleaning_fail",
+        "target": "sales_team_assignment_fail"
+      },
+      {
+        "source": "format_output",
+        "target": "agg_20f0e1c7"
+      },
+      {
+        "source": "generate_report",
+        "target": "format_output"
+      },
+      {
+        "source": "input_validation",
+        "target": "data_cleaning"
+      },
+      {
+        "source": "input_validation_fail",
+        "target": "data_cleaning_fail"
+      },
+      {
+        "source": "lead_scoring",
+        "target": "budget_check"
+      },
+      {
+        "source": "marketing_campaign",
+        "target": "automated_sequence"
+      },
+      {
+        "source": "sales_team_assignment",
+        "target": "marketing_campaign"
+      },
+      {
+        "source": "sales_team_assignment_fail",
+        "target": "marketing_campaign_fail"
+      },
+      {
+        "source": "source_routing",
+        "target": "agg_20f0e1c7",
+        "branch": "automated_followup"
+      },
+      {
+        "source": "source_routing",
+        "target": "agg_20f0e1c7",
+        "branch": "direct_sales"
+      },
+      {
+        "source": "source_routing",
+        "target": "agg_20f0e1c7",
+        "branch": "marketing_nurture"
+      },
+      {
+        "source": "source_routing",
+        "target": "sales_team_assignment"
+      },
+      {
+        "source": "start",
+        "target": "input_validation"
+      }
+    ],
+    "meta": {
+      "inserted_aggregators": 1,
+      "planning_mode": "llm_v2",
+      "model": "deepseek-chat",
+      "provider": "deepseek",
+      "prompt_version": "v2.1",
+      "schema_version": "wf-spec.v2",
+      "score": -33.958,
+      "selected_candidate_id": "cand_1",
+      "complexity_level": "complex",
+      "candidate_count": 3
+    },
+    "requirement_meta": {
+      "app_name": "市场活动线索全生命周期管理",
+      "description": "通过自动化与人工协作结合的方式，高效处理从多渠道采集的原始线索，实现从获取到转化（或沉淀）的全过程精细化管控。",
+      "scene": "generic",
+      "user_goal": "自动化处理多渠道线索，通过清洗、评分、分流、跟进与闭环管理，提升线索转化效率并防止流失。",
+      "inputs": [
+        {
+          "name": "raw_leads_data",
+          "label": "原始线索数据",
+          "type": "file",
+          "required": true
+        },
+        {
+          "name": "budget_threshold",
+          "label": "预算阈值",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "source_criteria",
+          "label": "来源分流标准",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "timeout_duration",
+          "label": "超时时长（小时）",
+          "type": "text",
+          "required": false
+        }
+      ],
+      "output_contract": {
+        "converted_opportunities": "array of objects",
+        "defeated_archives": "array of objects",
+        "nurturing_leads": "array of objects",
+        "processing_report": "object"
+      },
+      "capabilities": [
+        "input_check",
+        "intent_analysis",
+        "planning",
+        "retrieval",
+        "code_execution",
+        "tool_call",
+        "branching",
+        "generation",
+        "optimization",
+        "formatting"
+      ],
+      "node_preferences": {
+        "target_node_count": 12,
+        "need_private_kb": false,
+        "need_code_node": true,
+        "need_tools": true,
+        "need_branching": true
+      },
+      "runtime_config": {
+        "timeout": 72,
+        "concurrency": 5,
+        "model_tier": "deepseek-chat"
+      },
+      "constraints": []
+    }
+  }
+}

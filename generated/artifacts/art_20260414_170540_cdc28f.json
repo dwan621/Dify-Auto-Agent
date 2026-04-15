@@ -1,0 +1,470 @@
+{
+  "timestamp": "2026-04-14T17:05:40.244061",
+  "model_name": "deepseek-chat",
+  "provider": "deepseek",
+  "prompt_version": "v2.1",
+  "schema_version": "wf-spec.v2",
+  "requirement": {
+    "app_name": "市场活动线索全生命周期管理",
+    "description": "通过自动化与人工协作结合的方式，高效处理从多渠道采集的原始线索，实现从获取到转化（或沉淀）的全过程精细化管控。",
+    "scene": "generic",
+    "user_goal": "自动化处理多渠道线索，通过清洗、评分、分流、跟进与闭环管理，提升线索转化效率并防止流失。",
+    "inputs": [
+      {
+        "name": "raw_leads",
+        "label": "原始线索数据",
+        "type": "file",
+        "required": true
+      },
+      {
+        "name": "budget_threshold",
+        "label": "预算阈值",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "source_criteria",
+        "label": "来源分流标准",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "timeout_duration",
+        "label": "超时时长（小时）",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "output_contract": {
+      "final_status_report": "包含转化商机、战败归档、长期孵化线索的统计报告",
+      "process_analytics": "各节点处理效率与线索流转路径分析",
+      "alert_logs": "超时预警与异常处理记录"
+    },
+    "capabilities": [
+      "input_check",
+      "intent_analysis",
+      "planning",
+      "retrieval",
+      "tool_call",
+      "branching",
+      "generation",
+      "optimization",
+      "formatting",
+      "private_kb"
+    ],
+    "node_preferences": {
+      "target_node_count": 12,
+      "need_private_kb": true,
+      "need_code_node": true,
+      "need_tools": true,
+      "need_branching": true
+    },
+    "runtime_config": {
+      "max_execution_time": "30m",
+      "error_handling": "continue_with_log",
+      "concurrency": "parallel",
+      "model_tier": "deepseek-chat"
+    },
+    "constraints": []
+  },
+  "candidate_scores": [
+    {
+      "id": "cand_1",
+      "score": -21.45,
+      "ok": false,
+      "warnings": [
+        "工具节点 quick_followup url 已重写为白名单地址",
+        "原始 edges 为空，已按节点顺序自动连边",
+        "补全缺失 id: node_c60cf19d",
+        "节点 node_c60cf19d 的非法 type 已改为 llm",
+        "原始 edges 为空，已按节点顺序自动连边",
+        "补全缺失 id: node_5080eb1f",
+        "节点 node_5080eb1f 的非法 type 已改为 llm",
+        "原始 edges 为空，已按节点顺序自动连边",
+        "ifelse budget_check 缺少分支 high_budget，已补默认连边",
+        "ifelse budget_check 缺少分支 low_budget，已补默认连边",
+        "为 format_output 启用 fail-branch 并插入兜底链路（llm_fallback_5655257b->agg_f4213818->answer）",
+        "检测到 answer 存在多分支汇入，已插入 variable_aggregator=agg_3169f6d5",
+        "ifelse budget_check 缺少分支 high_budget，已补默认连边",
+        "ifelse budget_check 缺少分支 low_budget，已补默认连边",
+        "检测到 answer 存在多分支汇入，已插入 variable_aggregator=agg_7c2f6fc5",
+        "ifelse budget_check 缺少分支 high_budget，已补默认连边",
+        "ifelse budget_check 缺少分支 low_budget，已补默认连边",
+        "检测到 answer 存在多分支汇入，已插入 variable_aggregator=agg_91e48e01"
+      ],
+      "stats": {
+        "total_nodes": 16,
+        "type_counts": {
+          "start": 1,
+          "code": 4,
+          "knowledge_retrieval": 1,
+          "llm": 5,
+          "ifelse": 1,
+          "tool": 1,
+          "variable_aggregator": 2,
+          "answer": 1
+        },
+        "non_llm_node_ratio": 0.6875,
+        "has_path_start_to_answer": true
+      },
+      "repair_rounds": 2
+    }
+  ],
+  "selected_candidate_id": "cand_1",
+  "selected_spec": {
+    "workflow_name": "市场活动线索全生命周期管理",
+    "description": "通过自动化与人工协作结合的方式，高效处理从多渠道采集的原始线索，实现从获取到转化（或沉淀）的全过程精细化管控。",
+    "scene": "generic",
+    "inputs": [
+      {
+        "name": "raw_leads",
+        "label": "原始线索数据",
+        "type": "file",
+        "required": true
+      },
+      {
+        "name": "budget_threshold",
+        "label": "预算阈值",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "source_criteria",
+        "label": "来源分流标准",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "timeout_duration",
+        "label": "超时时长（小时）",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "output_contract": {
+      "final_status_report": "包含转化商机、战败归档、长期孵化线索的统计报告",
+      "process_analytics": "各节点处理效率与线索流转路径分析",
+      "alert_logs": "超时预警与异常处理记录"
+    },
+    "steps": [
+      {
+        "id": "start",
+        "type": "start",
+        "config": {}
+      },
+      {
+        "id": "input_validation",
+        "type": "code",
+        "config": {
+          "language": "python",
+          "script": "import json\nimport pandas as pd\nfrom io import StringIO\n\ndef validate_inputs(raw_leads, budget_threshold, source_criteria, timeout_duration=None):\n    \"\"\"验证输入数据格式与完整性\"\"\"\n    validation_result = {\n        \"valid\": True,\n        \"errors\": [],\n        \"leads_count\": 0,\n        \"budget_valid\": False,\n        \"criteria_valid\": False\n    }\n    \n    try:\n        # 解析原始线索数据\n        if raw_leads.endswith('.csv'):\n            df = pd.read_csv(StringIO(raw_leads))\n        elif raw_leads.endswith('.json'):\n            df = pd.read_json(StringIO(raw_leads))\n        else:\n            validation_result[\"errors\"].append(\"不支持的文件格式\")\n            validation_result[\"valid\"] = False\n            return validation_result\n        \n        validation_result[\"leads_count\"] = len(df)\n        \n        # 验证预算阈值\n        try:\n            budget = float(budget_threshold)\n            if budget > 0:\n                validation_result[\"budget_valid\"] = True\n            else:\n                validation_result[\"errors\"].append(\"预算阈值必须为正数\")\n        except ValueError:\n            validation_result[\"errors\"].append(\"预算阈值格式错误\")\n        \n        # 验证来源分流标准\n        if source_criteria and len(source_criteria.strip()) > 0:\n            validation_result[\"criteria_valid\"] = True\n        else:\n            validation_result[\"errors\"].append(\"来源分流标准不能为空\")\n        \n        # 验证超时时长（可选）\n        if timeout_duration:\n            try:\n                hours = int(timeout_duration)\n                if hours <= 0:\n                    validation_result[\"errors\"].append(\"超时时长必须为正整数\")\n            except ValueError:\n                validation_result[\"errors\"].append(\"超时时长格式错误\")\n        \n        if validation_result[\"errors\"]:\n            validation_result[\"valid\"] = False\n            \n    except Exception as e:\n        validation_result[\"valid\"] = False\n        validation_result[\"errors\"].append(f\"数据解析失败: {str(e)}\")\n    \n    return validation_result",
+          "example_key": "parse_json",
+          "variables": {
+            "raw_leads": "{{inputs.raw_leads}}",
+            "budget_threshold": "{{inputs.budget_threshold}}",
+            "source_criteria": "{{inputs.source_criteria}}",
+            "timeout_duration": "{{inputs.timeout_duration}}"
+          }
+        }
+      },
+      {
+        "id": "data_cleaning",
+        "type": "code",
+        "config": {
+          "language": "python",
+          "script": "import pandas as pd\nimport re\nfrom io import StringIO\n\ndef clean_leads_data(raw_leads):\n    \"\"\"清洗原始线索数据\"\"\"\n    try:\n        if raw_leads.endswith('.csv'):\n            df = pd.read_csv(StringIO(raw_leads))\n        else:\n            df = pd.read_json(StringIO(raw_leads))\n        \n        # 去重\n        df = df.drop_duplicates(subset=['email', 'phone'], keep='first')\n        \n        # 标准化字段\n        if 'email' in df.columns:\n            df['email'] = df['email'].str.lower().str.strip()\n        \n        if 'phone' in df.columns:\n            df['phone'] = df['phone'].astype(str).str.replace(r'[^0-9+]', '', regex=True)\n        \n        # 清理公司名称\n        if 'company' in df.columns:\n            df['company'] = df['company'].str.strip().str.title()\n        \n        # 处理缺失值\n        required_fields = ['name', 'email', 'phone', 'source']\n        for field in required_fields:\n            if field in df.columns:\n                df[field] = df[field].fillna('Unknown')\n        \n        # 添加处理时间戳\n        df['processed_at'] = pd.Timestamp.now().isoformat()\n        \n        return {\n            \"success\": True,\n            \"cleaned_data\": df.to_dict('records'),\n            \"cleaned_count\": len(df),\n            \"removed_duplicates\": len(pd.read_csv(StringIO(raw_leads))) - len(df)\n        }\n        \n    except Exception as e:\n        return {\n            \"success\": False,\n            \"error\": str(e),\n            \"cleaned_data\": [],\n            \"cleaned_count\": 0\n        }",
+          "example_key": "clean_text",
+          "variables": {
+            "raw_leads": "{{inputs.raw_leads}}"
+          }
+        }
+      },
+      {
+        "id": "knowledge_retrieval",
+        "type": "knowledge_retrieval",
+        "config": {
+          "query": "线索评分模型 客户画像 行业分类标准",
+          "top_k": 5
+        }
+      },
+      {
+        "id": "lead_scoring",
+        "type": "llm",
+        "config": {
+          "model": "deepseek-chat",
+          "prompt": "基于以下线索数据和知识库信息，为每条线索计算综合评分（0-100分）：\n\n线索数据：{{steps.data_cleaning.output.cleaned_data}}\n\n知识库参考：{{steps.knowledge_retrieval.output}}\n\n评分维度：\n1. 线索完整性（20分）\n2. 来源质量（20分）\n3. 预算匹配度（30分）\n4. 需求紧迫性（30分）\n\n请输出JSON格式：{\"scored_leads\": [{\"id\": 1, \"name\": \"张三\", \"score\": 85, \"dimensions\": {\"completeness\": 18, \"source_quality\": 20, \"budget_match\": 27, \"urgency\": 20}, \"grade\": \"A\"}]}\n评分等级：A(>=80), B(60-79), C(<60)",
+          "temperature": 0.3
+        }
+      },
+      {
+        "id": "source_classification",
+        "type": "llm",
+        "config": {
+          "model": "deepseek-chat",
+          "prompt": "根据以下分流标准和线索来源，将线索分类到对应的渠道团队：\n\n分流标准：{{inputs.source_criteria}}\n\n线索数据：{{steps.lead_scoring.output.scored_leads}}\n\n分类规则：\n1. 企业客户 -> 大客户团队\n2. 个人用户 -> 零售团队\n3. 合作伙伴 -> 渠道团队\n4. 线上活动 -> 电销团队\n5. 其他 -> 综合团队\n\n请输出JSON格式：{\"classified_leads\": [{\"id\": 1, \"name\": \"张三\", \"team\": \"大客户团队\", \"reason\": \"企业客户\"}]}",
+          "temperature": 0.2
+        }
+      },
+      {
+        "id": "budget_check",
+        "type": "ifelse",
+        "config": {
+          "condition": "{{steps.lead_scoring.output.scored_leads | map(attribute='dimensions.budget_match') | max >= 25}}",
+          "cases": [
+            {
+              "id": "high_budget",
+              "condition": "预算匹配度高，可进入快速跟进流程"
+            },
+            {
+              "id": "low_budget",
+              "condition": "预算匹配度低，需要进一步培育"
+            }
+          ]
+        }
+      },
+      {
+        "id": "quick_followup",
+        "type": "tool",
+        "config": {
+          "method": "post",
+          "url": "https://httpbin.org/get",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "action": "create_followup_task",
+            "leads": "{{steps.source_classification.output.classified_leads}}",
+            "priority": "high",
+            "channel": "{{steps.source_classification.output.classified_leads[0].team}}",
+            "budget_threshold": "{{inputs.budget_threshold}}"
+          },
+          "variables": {},
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "nurturing_process",
+        "type": "llm",
+        "config": {
+          "model": "deepseek-chat",
+          "prompt": "为以下低预算线索设计培育方案：\n\n线索数据：{{steps.source_classification.output.classified_leads}}\n\n预算阈值：{{inputs.budget_threshold}}\n\n请输出培育计划，包括：\n1. 内容营销策略\n2. 跟进频率\n3. 培育周期\n4. 转化目标\n\n格式：{\"nurturing_plan\": {\"strategy\": \"...\", \"frequency\": \"每周一次\", \"duration\": \"30天\", \"target_conversion_rate\": \"15%\"}}",
+          "temperature": 0.4
+        }
+      },
+      {
+        "id": "timeout_monitor",
+        "type": "code",
+        "config": {
+          "language": "python",
+          "script": "from datetime import datetime, timedelta\nimport json\n\ndef check_timeout(leads_data, timeout_hours):\n    \"\"\"检查线索跟进是否超时\"\"\"\n    if not timeout_hours:\n        return {\"timeout_leads\": [], \"alerts\": []}\n    \n    try:\n        timeout_hours = int(timeout_hours)\n        now = datetime.now()\n        timeout_leads = []\n        alerts = []\n        \n        for lead in leads_data:\n            # 假设每个线索有last_contact_time字段\n            if 'last_contact_time' in lead:\n                last_contact = datetime.fromisoformat(lead['last_contact_time'].replace('Z', '+00:00'))\n                time_diff = now - last_contact\n                \n                if time_diff.total_seconds() / 3600 > timeout_hours:\n                    timeout_leads.append({\n                        \"id\": lead.get('id'),\n                        \"name\": lead.get('name'),\n                        \"timeout_hours\": round(time_diff.total_seconds() / 3600, 1),\n                        \"last_contact\": lead['last_contact_time']\n                    })\n                    \n                    alerts.append({\n                        \"level\": \"warning\",\n                        \"message\": f\"线索 {lead.get('name')} 已超时 {round(time_diff.total_seconds() / 3600, 1)} 小时\",\n                        \"timestamp\": now.isoformat()\n                    })\n        \n        return {\n            \"timeout_leads\": timeout_leads,\n            \"alerts\": alerts,\n            \"total_timeout\": len(timeout_leads)\n        }\n        \n    except Exception as e:\n        return {\n            \"timeout_leads\": [],\n            \"alerts\": [{\"level\": \"error\", \"message\": f\"超时检查失败: {str(e)}\"}],\n            \"total_timeout\": 0\n        }",
+          "example_key": "parse_json",
+          "variables": {
+            "leads_data": "{{steps.source_classification.output.classified_leads}}",
+            "timeout_hours": "{{inputs.timeout_duration}}"
+          }
+        }
+      },
+      {
+        "id": "aggregate_results",
+        "type": "variable_aggregator",
+        "config": {
+          "variables": {
+            "scored_leads": "{{steps.lead_scoring.output.scored_leads}}",
+            "classified_leads": "{{steps.source_classification.output.classified_leads}}",
+            "followup_result": "{{steps.quick_followup.output}}",
+            "nurturing_plan": "{{steps.nurturing_process.output.nurturing_plan}}",
+            "timeout_alerts": "{{steps.timeout_monitor.output.alerts}}",
+            "cleaned_stats": "{{steps.data_cleaning.output}}"
+          }
+        }
+      },
+      {
+        "id": "generate_report",
+        "type": "llm",
+        "config": {
+          "model": "deepseek-chat",
+          "prompt": "基于以下聚合数据生成最终报告：\n\n{{steps.aggregate_results.output}}\n\n报告要求：\n1. 最终状态报告：包含转化商机、战败归档、长期孵化线索的统计\n2. 流程分析：各节点处理效率与线索流转路径分析\n3. 预警日志：超时预警与异常处理记录\n\n请输出结构化JSON报告。",
+          "temperature": 0.1
+        }
+      },
+      {
+        "id": "format_output",
+        "type": "code",
+        "config": {
+          "language": "python",
+          "script": "import json\nfrom datetime import datetime\n\ndef format_final_report(llm_report, aggregate_data):\n    \"\"\"格式化最终输出报告\"\"\"\n    try:\n        report_data = json.loads(llm_report) if isinstance(llm_report, str) else llm_report\n        \n        final_report = {\n            \"final_status_report\": {\n                \"generated_at\": datetime.now().isoformat(),\n                \"total_leads_processed\": aggregate_data.get('cleaned_stats', {}).get('cleaned_count', 0),\n                \"high_quality_leads\": len([l for l in aggregate_data.get('scored_leads', []) if l.get('grade') == 'A']),\n                \"medium_quality_leads\": len([l for l in aggregate_data.get('scored_leads', []) if l.get('grade') == 'B']),\n                \"low_quality_leads\": len([l for l in aggregate_data.get('scored_leads', []) if l.get('grade') == 'C']),\n                \"team_distribution\": {},\n                \"conversion_potential\": report_data.get('conversion_potential', {})\n            },\n            \"process_analytics\": {\n                \"data_cleaning_efficiency\": f\"{aggregate_data.get('cleaned_stats', {}).get('cleaned_count', 0)}/{aggregate_data.get('cleaned_stats', {}).get('cleaned_count', 0) + aggregate_data.get('cleaned_stats', {}).get('removed_duplicates', 0)}\",\n                \"scoring_distribution\": report_data.get('scoring_distribution', {}),\n                \"team_assignment_summary\": report_data.get('team_assignment_summary', {}),\n                \"flow_path_analysis\": report_data.get('flow_path_analysis', {})\n            },\n            \"alert_logs\": {\n                \"timeout_alerts\": aggregate_data.get('timeout_alerts', []),\n                \"process_errors\": report_data.get('process_errors', []),\n                \"system_alerts\": report_data.get('system_alerts', [])\n            }\n        }\n        \n        # 计算团队分布\n        classified_leads = aggregate_data.get('classified_leads', [])\n        team_counts = {}\n        for lead in classified_leads:\n            team = lead.get('team', 'Unknown')\n            team_counts[team] = team_counts.get(team, 0) + 1\n        \n        final_report[\"final_status_report\"][\"team_distribution\"] = team_counts\n        \n        return final_report\n        \n    except Exception as e:\n        return {\n            \"final_status_report\": {\"error\": f\"报告生成失败: {str(e)}\"},\n            \"process_analytics\": {},\n            \"alert_logs\": {\"system_alerts\": [{\"level\": \"error\", \"message\": f\"格式化失败: {str(e)}\"}]}\n        }",
+          "example_key": "format_markdown",
+          "variables": {
+            "llm_report": "{{steps.generate_report.output}}",
+            "aggregate_data": "{{steps.aggregate_results.output}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "answer",
+        "type": "answer",
+        "config": {
+          "answer": "{{steps.format_output.output}}"
+        }
+      },
+      {
+        "id": "node_5080eb1f",
+        "type": "llm"
+      },
+      {
+        "id": "agg_91e48e01",
+        "type": "variable_aggregator",
+        "title": "分支汇合",
+        "config": {}
+      }
+    ],
+    "edges": [
+      {
+        "source": "agg_91e48e01",
+        "target": "answer"
+      },
+      {
+        "source": "aggregate_results",
+        "target": "generate_report"
+      },
+      {
+        "source": "answer",
+        "target": "node_5080eb1f"
+      },
+      {
+        "source": "budget_check",
+        "target": "agg_91e48e01",
+        "branch": "high_budget"
+      },
+      {
+        "source": "budget_check",
+        "target": "agg_91e48e01",
+        "branch": "low_budget"
+      },
+      {
+        "source": "budget_check",
+        "target": "quick_followup"
+      },
+      {
+        "source": "data_cleaning",
+        "target": "knowledge_retrieval"
+      },
+      {
+        "source": "format_output",
+        "target": "agg_91e48e01"
+      },
+      {
+        "source": "generate_report",
+        "target": "format_output"
+      },
+      {
+        "source": "input_validation",
+        "target": "data_cleaning"
+      },
+      {
+        "source": "knowledge_retrieval",
+        "target": "lead_scoring"
+      },
+      {
+        "source": "lead_scoring",
+        "target": "source_classification"
+      },
+      {
+        "source": "nurturing_process",
+        "target": "timeout_monitor"
+      },
+      {
+        "source": "quick_followup",
+        "target": "nurturing_process"
+      },
+      {
+        "source": "source_classification",
+        "target": "budget_check"
+      },
+      {
+        "source": "start",
+        "target": "input_validation"
+      },
+      {
+        "source": "timeout_monitor",
+        "target": "aggregate_results"
+      }
+    ],
+    "meta": {
+      "inserted_aggregators": 1,
+      "planning_mode": "llm_v2",
+      "model": "deepseek-chat",
+      "provider": "deepseek",
+      "prompt_version": "v2.1",
+      "schema_version": "wf-spec.v2",
+      "score": -21.45,
+      "selected_candidate_id": "cand_1",
+      "complexity_level": "complex",
+      "candidate_count": 3
+    },
+    "requirement_meta": {
+      "app_name": "市场活动线索全生命周期管理",
+      "description": "通过自动化与人工协作结合的方式，高效处理从多渠道采集的原始线索，实现从获取到转化（或沉淀）的全过程精细化管控。",
+      "scene": "generic",
+      "user_goal": "自动化处理多渠道线索，通过清洗、评分、分流、跟进与闭环管理，提升线索转化效率并防止流失。",
+      "inputs": [
+        {
+          "name": "raw_leads",
+          "label": "原始线索数据",
+          "type": "file",
+          "required": true
+        },
+        {
+          "name": "budget_threshold",
+          "label": "预算阈值",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "source_criteria",
+          "label": "来源分流标准",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "timeout_duration",
+          "label": "超时时长（小时）",
+          "type": "text",
+          "required": false
+        }
+      ],
+      "output_contract": {
+        "final_status_report": "包含转化商机、战败归档、长期孵化线索的统计报告",
+        "process_analytics": "各节点处理效率与线索流转路径分析",
+        "alert_logs": "超时预警与异常处理记录"
+      },
+      "capabilities": [
+        "input_check",
+        "intent_analysis",
+        "planning",
+        "retrieval",
+        "tool_call",
+        "branching",
+        "generation",
+        "optimization",
+        "formatting",
+        "private_kb"
+      ],
+      "node_preferences": {
+        "target_node_count": 12,
+        "need_private_kb": true,
+        "need_code_node": true,
+        "need_tools": true,
+        "need_branching": true
+      },
+      "runtime_config": {
+        "max_execution_time": "30m",
+        "error_handling": "continue_with_log",
+        "concurrency": "parallel",
+        "model_tier": "deepseek-chat"
+      },
+      "constraints": []
+    }
+  }
+}

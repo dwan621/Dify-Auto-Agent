@@ -14,6 +14,7 @@ import requests
 import copy
 import uuid
 from typing import Any
+import json_repair
 
 # 2. app / client / 全局变量
 app = Flask(__name__)
@@ -49,7 +50,7 @@ def _build_openai_client(api_key: str, base_url: str) -> OpenAI | None:
         return None
     # Some environments inject invalid localhost proxy settings.
     trust_env = not _has_broken_local_proxy()
-    http_client = httpx.Client(trust_env=trust_env, timeout=20.0)
+    http_client = httpx.Client(trust_env=trust_env, timeout=120.0)
     return OpenAI(
         api_key=api_key,
         base_url=base_url,
@@ -200,6 +201,7 @@ PLANNING_MODE = "llm_v2"
 PROMPT_VERSION = "v2.1"
 SCHEMA_VERSION = "wf-spec.v2"
 MAX_NODE_LIMIT = 24
+DEFAULT_ALLOW_AUTOFIX_IFELSE = False
 SAFE_TOOL_HOSTS = {
     "httpbin.org",
     "api.github.com",
@@ -245,6 +247,10 @@ RUNTIME_METRICS = {
     "compile_latency_ms": [],
     "import_latency_ms": [],
     "non_llm_node_ratios": [],
+    "spec_autofix_total": 0,
+    "spec_autofix_ifelse_edges": 0,
+    "spec_autofix_fail_branch_wraps": 0,
+    "spec_autofix_aggregators": 0,
 }
 
 LEGACY_SCENE_CONFIG = {
@@ -394,12 +400,28 @@ def _strip_json_code_fence(content: str) -> str:
 def _safe_json_load(content: str) -> Any:
     text = _strip_json_code_fence(content)
     try:
-        return json.loads(text)
+        return json_repair.loads(text)
     except Exception:
         match = re.search(r"\{[\s\S]*\}|\[[\s\S]*\]", text)
         if not match:
             raise
-        return json.loads(match.group(0))
+        return json_repair.loads(match.group(0))
+
+def _safe_json_load_dict(content: str) -> dict:
+    data = _safe_json_load(content)
+    if isinstance(data, dict):
+        return data
+    if isinstance(data, list):
+        for item in data:
+            if isinstance(item, dict):
+                return item
+    text = _strip_json_code_fence(content)
+    match = re.search(r"\{[\s\S]*\}", text)
+    if match:
+        obj = json_repair.loads(match.group(0))
+        if isinstance(obj, dict):
+            return obj
+    raise ValueError("模型未返回对象结构")
 
 
 def _coerce_scene(scene: str) -> str:
@@ -452,6 +474,7 @@ def _normalize_requirement_v2(requirement: dict, user_input: str) -> dict:
 
     runtime_config = result["runtime_config"] if isinstance(result["runtime_config"], dict) else {}
     runtime_config.setdefault("model_tier", DEEPSEEK_MODEL)
+    runtime_config.setdefault("allow_autofix_ifelse", DEFAULT_ALLOW_AUTOFIX_IFELSE)
     result["runtime_config"] = runtime_config
 
     if not isinstance(result["constraints"], list):
@@ -514,7 +537,7 @@ target_node_count, need_private_kb, need_code_node, need_tools, need_branching
         ],
         temperature=0,
     )
-    parsed = _safe_json_load(content)
+    parsed = _safe_json_load_dict(content)
     return _normalize_requirement_v2(parsed, user_input)
 
 
@@ -537,6 +560,7 @@ workflow_name, description, scene, inputs, output_contract, steps, edges
 2) edges 里的 source/target 必须引用 steps 里的 id
 2.1) ifelse 的分支连边用 edges[].branch 表达，branch 值应与 steps[].config.cases[].id 对齐
 2.2) code/tool 如需失败兜底，可设置 steps[].config.error_strategy="fail-branch"，并在 edges 中用 edges[].source_handle 指定 success-branch / fail-branch
+2.3) 若步骤中包含 llm_plan 且后面存在 ifelse_route，请让 llm_plan 输出可稳定匹配的 ROUTE=knowledge/compute/tool/direct 标记
 3) steps 至少 5 个，最多 {MAX_NODE_LIMIT} 个
 4) 如使用 tool 节点，config.url 只能是以下主机之一：{sorted(list(SAFE_TOOL_HOSTS))}
 5) tool 节点 config 建议包含：method/url/headers/body/variables
@@ -553,9 +577,7 @@ requirement:
         messages=[{"role": "system", "content": planner_prompt}],
         temperature=temperature,
     )
-    parsed = _safe_json_load(content)
-    if not isinstance(parsed, dict):
-        raise ValueError("模型未返回对象结构")
+    parsed = _safe_json_load_dict(content)
     parsed.setdefault("workflow_name", requirement.get("app_name", "通用工作流"))
     parsed.setdefault("description", requirement.get("description", "模型规划结果"))
     parsed["scene"] = _coerce_scene(parsed.get("scene", requirement.get("scene", "generic")))
@@ -706,6 +728,11 @@ def validate_workflow_spec_v2(spec: dict, max_nodes: int = MAX_NODE_LIMIT) -> di
     if len(answer_ids) > 1:
         warnings.append("存在多个 answer 节点")
 
+    step_type_map = {
+        s.get("id"): s.get("type")
+        for s in steps
+        if isinstance(s, dict) and s.get("id")
+    }
     seen_edges = set()
     valid_edges: list[dict] = []
     for idx, edge in enumerate(edges):
@@ -717,12 +744,30 @@ def validate_workflow_spec_v2(spec: dict, max_nodes: int = MAX_NODE_LIMIT) -> di
         if source not in step_ids or target not in step_ids:
             errors.append(f"edge[{idx}] 引用了不存在节点: {source}->{target}")
             continue
+        if source == target:
+            errors.append(f"edge[{idx}] source/target 不能相同: {source}")
+            continue
+        source_type = step_type_map.get(source)
+        if source_type == "ifelse":
+            if edge.get("source_handle") and not edge.get("branch"):
+                errors.append(f"edge[{idx}] ifelse 源节点请使用 branch，不要使用 source_handle")
+        else:
+            if edge.get("branch") and not edge.get("source_handle"):
+                branch = str(edge.get("branch"))
+                if branch in {"success-branch", "fail-branch"}:
+                    errors.append(f"edge[{idx}] 非 ifelse 节点请使用 source_handle 表达 {branch}")
+                else:
+                    warnings.append(f"edge[{idx}] 非 ifelse 节点存在 branch={branch}，建议改为 source_handle")
         key = (source, target, edge.get("branch"), edge.get("source_handle"))
         if key in seen_edges:
             warnings.append(f"重复 edge: {source}->{target}")
             continue
         seen_edges.add(key)
         valid_edges.append(edge)
+
+    incoming_map: dict[str, list[dict]] = {}
+    for edge in valid_edges:
+        incoming_map.setdefault(edge.get("target"), []).append(edge)
 
     for step in steps:
         if not isinstance(step, dict):
@@ -733,6 +778,9 @@ def validate_workflow_spec_v2(spec: dict, max_nodes: int = MAX_NODE_LIMIT) -> di
             continue
 
         if stype == "ifelse":
+            incoming = incoming_map.get(sid, [])
+            if len(incoming) != 1:
+                errors.append(f"ifelse 节点 {sid} 应该且只能有 1 条入边，当前 {len(incoming)}")
             cfg = step.get("config", {}) or {}
             raw_cases = cfg.get("cases", [])
             if isinstance(raw_cases, list) and raw_cases:
@@ -753,11 +801,16 @@ def validate_workflow_spec_v2(spec: dict, max_nodes: int = MAX_NODE_LIMIT) -> di
             cfg = step.get("config", {}) or {}
             if isinstance(cfg, dict) and cfg.get("error_strategy") == "fail-branch":
                 outgoing = [e for e in valid_edges if e.get("source") == sid]
-                handles = {str(e.get("source_handle") or "source") for e in outgoing}
+                handles = {str(e.get("source_handle") or e.get("branch") or "source") for e in outgoing}
                 if "success-branch" not in handles:
                     errors.append(f"{stype} 节点 {sid} error_strategy=fail-branch 但缺少 success-branch 连边")
                 if "fail-branch" not in handles:
                     errors.append(f"{stype} 节点 {sid} error_strategy=fail-branch 但缺少 fail-branch 连边")
+
+        if stype == "answer":
+            incoming = incoming_map.get(sid, [])
+            if len(incoming) > 1:
+                errors.append(f"answer 节点 {sid} 存在多入边，需先通过 variable_aggregator 汇合")
 
     if step_ids and _has_cycle(step_ids, valid_edges):
         errors.append("workflow 存在循环依赖")
@@ -846,6 +899,18 @@ def deterministic_fix_workflow_spec_v2(spec: dict) -> tuple[dict, list[str]]:
         cleaned_steps.append({"id": "answer", "type": "answer", "title": "直接回复"})
         step_ids.add("answer")
         warnings.append("补充 answer 节点")
+    if len(cleaned_steps) > MAX_NODE_LIMIT:
+        while len(cleaned_steps) > MAX_NODE_LIMIT:
+            removed = False
+            for idx in range(len(cleaned_steps) - 1, -1, -1):
+                t = cleaned_steps[idx].get("type") if isinstance(cleaned_steps[idx], dict) else None
+                if t not in {"start", "answer"}:
+                    cleaned_steps.pop(idx)
+                    removed = True
+                    break
+            if not removed:
+                break
+        step_ids = {s["id"] for s in cleaned_steps if isinstance(s, dict) and s.get("id")}
 
     cleaned_edges = []
     seen_edge = set()
@@ -898,7 +963,42 @@ def _pick_default_target_id(spec: dict) -> str | None:
     return llm_ids[-1] if llm_ids else None
 
 
-def _ensure_ifelse_branch_edges(spec: dict) -> list[str]:
+def _normalize_edge_semantics(spec: dict) -> list[str]:
+    warnings: list[str] = []
+    steps = spec.get("steps", [])
+    edges = spec.get("edges", [])
+    if not isinstance(steps, list) or not isinstance(edges, list):
+        return warnings
+    step_type_map = {
+        s.get("id"): s.get("type")
+        for s in steps
+        if isinstance(s, dict) and s.get("id")
+    }
+    for edge in edges:
+        if not isinstance(edge, dict):
+            continue
+        source = edge.get("source")
+        stype = step_type_map.get(source)
+        branch = edge.get("branch")
+        source_handle = edge.get("source_handle")
+        if stype == "ifelse":
+            if source_handle and (not branch):
+                edge["branch"] = str(source_handle)
+                edge.pop("source_handle", None)
+                warnings.append(f"ifelse 边 {source}->{edge.get('target')} 使用 source_handle，已归一化为 branch")
+            elif source_handle and branch and str(source_handle) != str(branch):
+                edge.pop("source_handle", None)
+                warnings.append(f"ifelse 边 {source}->{edge.get('target')} 的 source_handle/branch 冲突，已保留 branch")
+        else:
+            if branch and str(branch) in {"success-branch", "fail-branch"} and (not source_handle):
+                edge["source_handle"] = str(branch)
+                edge.pop("branch", None)
+                warnings.append(f"节点 {source} 的 fail-branch 边已归一化到 source_handle")
+    spec["edges"] = _sorted_edges(edges)
+    return warnings
+
+
+def _ensure_ifelse_branch_edges(spec: dict, allow_autofix: bool = False) -> list[str]:
     warnings: list[str] = []
     steps = spec.get("steps", [])
     edges = spec.get("edges", [])
@@ -935,8 +1035,11 @@ def _ensure_ifelse_branch_edges(spec: dict) -> list[str]:
         for case_id in case_ids:
             if case_id in existing_branches:
                 continue
-            edges.append({"source": sid, "target": default_target, "branch": case_id})
-            warnings.append(f"ifelse {sid} 缺少分支 {case_id}，已补默认连边")
+            if allow_autofix:
+                edges.append({"source": sid, "target": default_target, "branch": case_id})
+                warnings.append(f"ifelse {sid} 缺少分支 {case_id}，已补默认连边")
+            else:
+                warnings.append(f"ifelse {sid} 缺少分支 {case_id}（严格模式未自动补边）")
 
     spec["edges"] = _sorted_edges(edges)
     return warnings
@@ -972,6 +1075,9 @@ def _insert_variable_aggregators_for_conditional_merges(spec: dict) -> list[str]
             continue
 
         agg_id = _new_id("agg")
+        if len(steps) + 1 > MAX_NODE_LIMIT:
+            warnings.append(f"节点数接近上限，跳过为 {target_id} 插入 variable_aggregator")
+            continue
         created += 1
         step_by_id[agg_id] = {"id": agg_id, "type": "variable_aggregator", "title": "分支汇合", "config": {}}
         steps.append(step_by_id[agg_id])
@@ -1035,11 +1141,19 @@ def _wrap_exec_node_with_fail_branch(spec: dict) -> list[str]:
         if not sid:
             continue
         cfg = step.get("config", {}) if isinstance(step.get("config"), dict) else {}
-        if cfg.get("error_strategy"):
+        error_strategy = cfg.get("error_strategy")
+        if error_strategy and error_strategy != "fail-branch":
             continue
         outs = outgoing.get(sid, [])
         if not outs:
+            if error_strategy == "fail-branch":
+                cfg.pop("error_strategy", None)
+                step["config"] = cfg
             continue
+        if error_strategy == "fail-branch":
+            handles = {str(e.get("source_handle") or e.get("branch") or "source") for e in outs if isinstance(e, dict)}
+            if "success-branch" in handles and "fail-branch" in handles:
+                continue
         target_ids = [e.get("target") for e in outs if e.get("target")]
         if not target_ids:
             continue
@@ -1049,10 +1163,16 @@ def _wrap_exec_node_with_fail_branch(spec: dict) -> list[str]:
                 primary_target = tid
                 break
         if not primary_target:
-            continue
+            primary_target = target_ids[0]
 
         fallback_llm_id = _new_id("llm_fallback")
         agg_id = _new_id("agg")
+        if len(steps) + 2 > MAX_NODE_LIMIT:
+            if error_strategy == "fail-branch":
+                cfg.pop("error_strategy", None)
+                step["config"] = cfg
+            warnings.append(f"节点数接近上限，跳过为 {sid} 插入 fail-branch 兜底链路")
+            continue
 
         steps.append({
             "id": fallback_llm_id,
@@ -1090,10 +1210,25 @@ def normalize_workflow_spec_v2(spec: dict, requirement: dict | None = None) -> t
     if not isinstance(normalized.get("edges"), list):
         normalized["edges"] = []
 
-    warnings.extend(_ensure_ifelse_branch_edges(normalized))
+    runtime_cfg = {}
+    if isinstance(requirement, dict) and isinstance(requirement.get("runtime_config"), dict):
+        runtime_cfg = requirement.get("runtime_config", {})
+    allow_autofix_ifelse = bool(runtime_cfg.get("allow_autofix_ifelse", DEFAULT_ALLOW_AUTOFIX_IFELSE))
+
+    warnings.extend(_normalize_edge_semantics(normalized))
+    warnings.extend(_ensure_ifelse_branch_edges(normalized, allow_autofix=allow_autofix_ifelse))
     warnings.extend(_wrap_exec_node_with_fail_branch(normalized))
     warnings.extend(_insert_variable_aggregators_for_conditional_merges(normalized))
     normalized["edges"] = _sorted_edges(normalized.get("edges", []))
+    normalized.setdefault("meta", {})
+    normalized["meta"]["allow_autofix_ifelse"] = allow_autofix_ifelse
+    autofix_warnings = [w for w in warnings if "已" in w]
+    normalized["meta"]["autofix_warnings"] = len(autofix_warnings)
+    if autofix_warnings:
+        RUNTIME_METRICS["spec_autofix_total"] += len(autofix_warnings)
+        RUNTIME_METRICS["spec_autofix_ifelse_edges"] += len([w for w in autofix_warnings if "ifelse" in w and "补" in w])
+        RUNTIME_METRICS["spec_autofix_fail_branch_wraps"] += len([w for w in autofix_warnings if "fail-branch" in w])
+        RUNTIME_METRICS["spec_autofix_aggregators"] += len([w for w in autofix_warnings if "variable_aggregator" in w])
     return normalized, warnings
 
 
@@ -1113,10 +1248,7 @@ def llm_repair_workflow_spec_v2(spec: dict, errors: list[str], requirement: dict
         messages=[{"role": "system", "content": system_prompt}],
         temperature=0,
     )
-    parsed = _safe_json_load(content)
-    if not isinstance(parsed, dict):
-        raise ValueError("修复结果不是对象")
-    return parsed
+    return _safe_json_load_dict(content)
 
 
 def _score_candidate_v2(spec: dict, requirement: dict, validation: dict) -> float:
@@ -1161,6 +1293,12 @@ def _score_candidate_v2(spec: dict, requirement: dict, validation: dict) -> floa
         score -= abs(total_nodes - target) * 1.2
 
     score -= len(validation.get("warnings", [])) * 0.8
+    meta = spec.get("meta", {}) if isinstance(spec, dict) else {}
+    autofix_count = int(meta.get("autofix_warnings", 0) or 0)
+    if autofix_count == 0:
+        score += 3
+    else:
+        score -= min(autofix_count, 8) * 1.5
     return round(score, 3)
 
 
@@ -1268,13 +1406,11 @@ def analyze_with_llm_v2(user_input: str) -> dict:
             "repair_rounds": repair_rounds,
         })
 
-    # prefer highest score, then valid one, then first
-    candidates_sorted = sorted(
-        candidates,
-        key=lambda c: (c["score"], c["validation"].get("ok", False)),
-        reverse=True
-    )
-    selected = candidates_sorted[0]
+    ok_candidates = [c for c in candidates if c.get("validation", {}).get("ok")]
+    if ok_candidates:
+        selected = max(ok_candidates, key=lambda c: c["score"])
+    else:
+        selected = max(candidates, key=lambda c: c["score"])
     selected_validation = selected["validation"]
 
     selected_spec = copy.deepcopy(selected["spec"])
@@ -1668,12 +1804,29 @@ def build_branching_config(requirement: dict) -> dict:
     }
 
 
+def _extract_selection_features(requirement: dict) -> dict[str, bool]:
+    text_parts = [
+        str(requirement.get("user_goal", "")),
+        str(requirement.get("description", "")),
+    ]
+    for c in requirement.get("constraints", []) if isinstance(requirement.get("constraints"), list) else []:
+        text_parts.append(str(c))
+    joined = " ".join(text_parts).lower()
+    return {
+        "mentions_kb": any(k in joined for k in ["知识库", "文档", "资料", "检索", "内部规范", "reference", "retrieve"]),
+        "mentions_tool": any(k in joined for k in ["接口", "api", "http", "实时", "网页", "抓取", "web"]),
+        "mentions_code": any(k in joined for k in ["计算", "转换", "清洗", "解析", "json", "yaml", "正则", "统计", "代码"]),
+        "needs_routing": any(k in joined for k in ["分支", "路由", "条件", "if", "switch", "多路径"]),
+    }
+
+
 def choose_execution_nodes(
     need_private_kb: bool,
     need_code_node: bool,
     need_tools: bool,
     target_node_count: int,
-    max_exec_nodes: int | None = None
+    max_exec_nodes: int | None = None,
+    requirement: dict | None = None,
 ) -> list[str]:
     """
     根据预算决定保留哪些执行节点。
@@ -1685,7 +1838,7 @@ def choose_execution_nodes(
     max_exec_nodes 如果传入，就直接按预算裁剪。
     """
 
-    candidates = []
+    candidates: list[str] = []
     if need_private_kb:
         candidates.append("kb_retrieval")
     if need_code_node:
@@ -1693,14 +1846,33 @@ def choose_execution_nodes(
     if need_tools:
         candidates.append("tool_call")
 
+    score_map = {"kb_retrieval": 0.0, "code_exec": 0.0, "tool_call": 0.0}
+    if need_private_kb:
+        score_map["kb_retrieval"] += 1.0
+    if need_code_node:
+        score_map["code_exec"] += 1.0
+    if need_tools:
+        score_map["tool_call"] += 1.0
+
+    features = _extract_selection_features(requirement or {})
+    if features["mentions_kb"]:
+        score_map["kb_retrieval"] += 1.5
+    if features["mentions_code"]:
+        score_map["code_exec"] += 1.5
+    if features["mentions_tool"]:
+        score_map["tool_call"] += 1.5
+
+    priority = {"kb_retrieval": 0, "code_exec": 1, "tool_call": 2}
+    ranked = sorted(candidates, key=lambda n: (-score_map.get(n, 0), priority.get(n, 99)))
+
     if max_exec_nodes is not None:
-        return candidates[:max(0, max_exec_nodes)]
+        return ranked[:max(0, max_exec_nodes)]
 
     if target_node_count <= 6:
-        return candidates[:1]
+        return ranked[:1]
     if target_node_count == 7:
-        return candidates[:2]
-    return candidates[:2]
+        return ranked[:2]
+    return ranked[:2]
 
 
 def synthesize_workflow_spec(requirement: dict) -> dict:
@@ -1752,13 +1924,7 @@ def synthesize_workflow_spec(requirement: dict) -> dict:
         or "branching" in capabilities
     )
 
-    has_real_branch_targets = bool(
-        need_private_kb or need_code_node or need_tools
-    )
-
-    need_branching = bool(
-        explicit_branching and has_real_branch_targets
-    )
+    has_real_branch_targets = bool(need_private_kb or need_code_node or need_tools)
 
     steps = []
     edges = []
@@ -1778,7 +1944,8 @@ def synthesize_workflow_spec(requirement: dict) -> dict:
     # ===== 先按预算规划 =====
     # 固定主链：start + llm_intent + llm_plan + llm_generate + answer = 5
     base_count = 5
-    branch_count = 1 if need_branching else 0
+    pre_branch_enabled = bool(explicit_branching and has_real_branch_targets)
+    branch_count = 1 if pre_branch_enabled else 0
     remaining_slots = target_node_count - base_count - branch_count
     remaining_slots = max(0, remaining_slots)
 
@@ -1788,9 +1955,15 @@ def synthesize_workflow_spec(requirement: dict) -> dict:
         need_code_node=need_code_node,
         need_tools=need_tools,
         target_node_count=target_node_count,
-        max_exec_nodes=remaining_slots
+        max_exec_nodes=remaining_slots,
+        requirement=requirement,
     )
     remaining_slots -= len(selected_exec_nodes)
+
+    # 分支只在显式需要且确实存在多执行目标时启用，避免无意义 ifelse
+    need_branching = bool(explicit_branching and len(selected_exec_nodes) >= 2)
+    if pre_branch_enabled and (not need_branching):
+        remaining_slots += 1
 
     # 再决定是否保留 input_check / review / template
     add_input_check = False
@@ -1831,7 +2004,7 @@ def synthesize_workflow_spec(requirement: dict) -> dict:
         "llm_plan",
         "llm",
         "执行规划",
-        "请基于需求理解结果，规划后续执行步骤，并说明最适合走知识库、代码处理、工具调用还是直接生成。"
+        "请基于需求理解结果规划执行路径，只输出一行路由标记：ROUTE=knowledge 或 ROUTE=compute 或 ROUTE=tool 或 ROUTE=direct。"
     )
 
     if need_branching:
@@ -2668,6 +2841,14 @@ def index():
     return render_template("index.html", asset_version=get_asset_version())
 
 
+@app.route("/favicon.ico")
+def favicon():
+    static_dir = os.path.join(app.root_path, "static")
+    if os.path.exists(os.path.join(static_dir, "favicon.ico")):
+        return send_from_directory(static_dir, "favicon.ico", mimetype="image/vnd.microsoft.icon")
+    return Response(status=204)
+
+
 @app.route("/health", methods=["GET"])
 def health():
     _refresh_model_runtime(force=True)
@@ -2726,6 +2907,18 @@ def metrics():
         "# HELP auto_agent_non_llm_node_rate Average non-llm node ratio",
         "# TYPE auto_agent_non_llm_node_rate gauge",
         f"auto_agent_non_llm_node_rate {round(non_llm_avg, 4)}",
+        "# HELP auto_agent_spec_autofix_total Total autofix actions in normalization",
+        "# TYPE auto_agent_spec_autofix_total counter",
+        f"auto_agent_spec_autofix_total {RUNTIME_METRICS['spec_autofix_total']}",
+        "# HELP auto_agent_spec_autofix_ifelse_edges Total autofixed ifelse branch edges",
+        "# TYPE auto_agent_spec_autofix_ifelse_edges counter",
+        f"auto_agent_spec_autofix_ifelse_edges {RUNTIME_METRICS['spec_autofix_ifelse_edges']}",
+        "# HELP auto_agent_spec_autofix_fail_branch_wraps Total autofixed fail-branch wrappers",
+        "# TYPE auto_agent_spec_autofix_fail_branch_wraps counter",
+        f"auto_agent_spec_autofix_fail_branch_wraps {RUNTIME_METRICS['spec_autofix_fail_branch_wraps']}",
+        "# HELP auto_agent_spec_autofix_aggregators Total inserted aggregator autofixes",
+        "# TYPE auto_agent_spec_autofix_aggregators counter",
+        f"auto_agent_spec_autofix_aggregators {RUNTIME_METRICS['spec_autofix_aggregators']}",
         "# HELP auto_agent_p95_analyze_latency_ms P95 analyze latency in ms",
         "# TYPE auto_agent_p95_analyze_latency_ms gauge",
         f"auto_agent_p95_analyze_latency_ms {_p95(RUNTIME_METRICS['analyze_latency_ms'])}",
@@ -3413,7 +3606,7 @@ def compile_workflow_spec_to_dify_yaml(spec: dict) -> str:
                             "id": _new_id("cond"),
                             "varType": "string",
                             "comparison_operator": "contains",
-                            "value": case_id,
+                            "value": f"ROUTE={case_id}",
                             "variable_selector": [previous_step_id, "text"]
                         }
                     ]
@@ -3725,6 +3918,9 @@ def _resolve_source_handle(source_step_type: str, edge_info: dict | None = None)
     handle = (edge_info or {}).get("source_handle")
     if handle:
         return str(handle)
+    branch = (edge_info or {}).get("branch")
+    if branch:
+        return str(branch)
     return "source"
 
 def _resolve_target_handle(target_step_type: str) -> str:

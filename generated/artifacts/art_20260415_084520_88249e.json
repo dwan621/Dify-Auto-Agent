@@ -1,0 +1,414 @@
+{
+  "timestamp": "2026-04-15T08:45:20.397240",
+  "model_name": "deepseek-chat",
+  "provider": "deepseek",
+  "prompt_version": "v2.1",
+  "schema_version": "wf-spec.v2",
+  "requirement": {
+    "app_name": "市场活动线索全生命周期管理",
+    "description": "通过自动化与人工协作结合的方式，高效处理从多渠道采集的原始线索，实现从获取到转化（或沉淀）的全过程精细化管控。",
+    "scene": "generic",
+    "user_goal": "自动化处理多渠道线索，通过清洗、评分、分流、跟进与闭环管理，提升线索转化效率并防止流失。",
+    "inputs": [
+      {
+        "name": "raw_leads_data",
+        "label": "原始线索数据",
+        "type": "file",
+        "required": true
+      },
+      {
+        "name": "scoring_criteria",
+        "label": "智能评分规则/标准",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "budget_threshold",
+        "label": "预算分流阈值",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "source_priority_list",
+        "label": "线索来源优先级列表",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "vip_assignment_rules",
+        "label": "VIP专线手动指派规则",
+        "type": "paragraph",
+        "required": false
+      },
+      {
+        "name": "public_pool_matching_rules",
+        "label": "公海池自动匹配规则",
+        "type": "paragraph",
+        "required": false
+      },
+      {
+        "name": "timeout_duration",
+        "label": "销售跟进超时时长（小时）",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "first_contact_outcome_definitions",
+        "label": "首次触达结果定义（商机/战败/孵化）",
+        "type": "paragraph",
+        "required": false
+      }
+    ],
+    "output_contract": {
+      "final_outputs": [
+        "清洗并评分后的线索清单",
+        "VIP专线指派记录",
+        "公海池分发匹配报告",
+        "销售超时预警列表",
+        "转化商机列表",
+        "战败线索归档报告",
+        "转入孵化培育线索列表",
+        "全流程分析总结报告"
+      ],
+      "format": "结构化数据报告（如CSV/JSON）及可视化仪表板"
+    },
+    "capabilities": [
+      "input_check",
+      "intent_analysis",
+      "planning",
+      "retrieval",
+      "code_execution",
+      "tool_call",
+      "branching",
+      "generation",
+      "optimization",
+      "formatting"
+    ],
+    "node_preferences": {
+      "target_node_count": 12,
+      "need_private_kb": true,
+      "need_code_node": true,
+      "need_tools": true,
+      "need_branching": true
+    },
+    "runtime_config": {
+      "max_execution_time": "30分钟",
+      "error_handling": "关键节点失败时暂停并告警，支持从断点重试",
+      "data_persistence": "所有中间状态和结果自动保存",
+      "concurrency": "支持批量线索并行处理",
+      "model_tier": "deepseek-chat"
+    },
+    "constraints": [
+      "必须包含数据清洗、智能评分、基于预算/来源的分流、VIP手动指派、公海池自动匹配、超时预警、首次触达结果判断三大闭环出口等核心环节。",
+      "流程节点数需围绕12个进行设计。",
+      "需确保VIP专线与公海池分流逻辑的排他性。",
+      "超时预警机制需基于可配置的时长（默认72小时）。",
+      "最终输出必须清晰区分商机、战败、孵化三类结果。"
+    ]
+  },
+  "candidate_scores": [
+    {
+      "id": "cand_1",
+      "score": 66.1,
+      "ok": true,
+      "warnings": [
+        "补充 answer 节点",
+        "原始 edges 为空，已按节点顺序自动连边",
+        "为 input_check_1 启用 fail-branch 并插入兜底链路（llm_fallback_517f5c8e->agg_a2e92b86->answer）"
+      ],
+      "stats": {
+        "total_nodes": 5,
+        "type_counts": {
+          "start": 1,
+          "code": 1,
+          "answer": 1,
+          "llm": 1,
+          "variable_aggregator": 1
+        },
+        "non_llm_node_ratio": 0.8,
+        "has_path_start_to_answer": true
+      },
+      "repair_rounds": 0
+    }
+  ],
+  "selected_candidate_id": "cand_1",
+  "selected_spec": {
+    "workflow_name": "市场活动线索全生命周期管理",
+    "description": "通过自动化与人工协作结合的方式，高效处理从多渠道采集的原始线索，实现从获取到转化（或沉淀）的全过程精细化管控。",
+    "scene": "generic",
+    "inputs": [
+      {
+        "name": "raw_leads_data",
+        "label": "原始线索数据",
+        "type": "file",
+        "required": true
+      },
+      {
+        "name": "scoring_criteria",
+        "label": "智能评分规则/标准",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "budget_threshold",
+        "label": "预算分流阈值",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "source_priority_list",
+        "label": "线索来源优先级列表",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "vip_assignment_rules",
+        "label": "VIP专线手动指派规则",
+        "type": "paragraph",
+        "required": false
+      },
+      {
+        "name": "public_pool_matching_rules",
+        "label": "公海池自动匹配规则",
+        "type": "paragraph",
+        "required": false
+      },
+      {
+        "name": "timeout_duration",
+        "label": "销售跟进超时时长（小时）",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "first_contact_outcome_definitions",
+        "label": "首次触达结果定义（商机/战败/孵化）",
+        "type": "paragraph",
+        "required": false
+      }
+    ],
+    "output_contract": {
+      "final_outputs": [
+        "清洗并评分后的线索清单",
+        "VIP专线指派记录",
+        "公海池分发匹配报告",
+        "销售超时预警列表",
+        "转化商机列表",
+        "战败线索归档报告",
+        "转入孵化培育线索列表",
+        "全流程分析总结报告"
+      ],
+      "format": "结构化数据报告（如CSV/JSON）及可视化仪表板"
+    },
+    "steps": [
+      {
+        "id": "start_1",
+        "type": "start",
+        "config": {
+          "name": "开始处理"
+        }
+      },
+      {
+        "id": "input_check_1",
+        "type": "code",
+        "config": {
+          "name": "输入数据校验与解析",
+          "language": "python",
+          "script": "import pandas as pd\nimport json\ndef main(raw_leads_data, scoring_criteria, budget_threshold, source_priority_list, vip_assignment_rules, public_pool_matching_rules, timeout_duration, first_contact_outcome_definitions):\n    # 解析原始数据文件\n    if raw_leads_data.endswith('.csv'):\n        df = pd.read_csv(raw_leads_data)\n    elif raw_leads_data.endswith('.json'):\n        df = pd.read_json(raw_leads_data)\n    else:\n        raise ValueError('不支持的文件格式')\n    \n    # 校验必要字段\n    required_fields = ['lead_id', 'name', 'contact', 'source', 'budget', 'create_time']\n    missing_fields = [field for field in required_fields if field not in df.columns]\n    if missing_fields:\n        raise ValueError(f'缺少必要字段: {missing_fields}')\n    \n    # 解析其他输入参数\n    params = {\n        'scoring_criteria': scoring_criteria",
+          "budget_threshold": "float(budget_threshold) if budget_threshold else 10000",
+          "source_priority_list": "json.loads(source_priority_list) if source_priority_list else []",
+          "vip_assignment_rules": "vip_assignment_rules",
+          "public_pool_matching_rules": "public_pool_matching_rules",
+          "timeout_duration": "int(timeout_duration) if timeout_duration else 72",
+          "first_contact_outcome_definitions": "first_contact_outcome_definitions\n    }\n    \n    return {\n        'leads_df': df.to_dict('records')",
+          "params": "params",
+          "validation_passed": true,
+          "error_strategy": "fail-branch"
+        },
+        "example_key": "parse_json",
+        "variables": {
+          "raw_leads_data": "{{inputs.raw_leads_data}}",
+          "scoring_criteria": "{{inputs.scoring_criteria}}",
+          "budget_threshold": "{{inputs.budget_threshold}}",
+          "source_priority_list": "{{inputs.source_priority_list}}",
+          "vip_assignment_rules": "{{inputs.vip_assignment_rules}}",
+          "public_pool_matching_rules": "{{inputs.public_pool_matching_rules}}",
+          "timeout_duration": "{{inputs.timeout_duration}}",
+          "first_contact_outcome_definitions": "{{inputs.first_contact_outcome_definitions}}"
+        },
+        "error_strategy": "fail-branch"
+      },
+      {
+        "id": "answer",
+        "type": "answer",
+        "title": "直接回复"
+      },
+      {
+        "id": "llm_fallback_517f5c8e",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_a2e92b86",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      }
+    ],
+    "id": "data_clean_1",
+    "type": "code",
+    "config": {
+      "name": "数据清洗与标准化",
+      "language": "python",
+      "script": "import pandas as pd\nimport re\nfrom datetime import datetime\n\ndef main(leads_df):\n    df = pd.DataFrame(leads_df)\n    \n    # 1. 去重\n    df = df.drop_duplicates(subset=['lead_id'], keep='first')\n    \n    # 2. 联系方式标准化\n    def clean_contact(contact):\n        if pd.isna(contact):\n            return ''\n        contact = str(contact)\n        # 移除所有非数字字符\n        digits = re.sub(r'\\D', '', contact)\n        return digits\n    \n    df['contact_clean'] = df['contact'].apply(clean_contact)\n    \n    # 3. 预算字段处理\n    def clean_budget(budget):\n        if pd.isna(budget):\n            return 0.0\n        if isinstance(budget, str):\n            # 移除货币符号和逗号\n            budget = re.sub(r'[^\\d.]', '', budget)\n        try:\n            return float(budget)\n        except:\n            return 0.0\n    \n    df['budget_clean'] = df['budget'].apply(clean_budget)\n    \n    # 4. 时间字段标准化\n    def parse_time(time_str):\n        if pd.isna(time_str):\n            return datetime.now().isoformat()\n        try:\n            # 尝试多种格式解析\n            for fmt in ['%Y-%m-%d %H:%M:%S', '%Y/%m/%d %H:%M:%S', '%Y-%m-%d', '%Y/%m/%d']:\n                try:\n                    dt = datetime.strptime(str(time_str), fmt)\n                    return dt.isoformat()\n                except:\n                    continue\n            return datetime.now().isoformat()\n        except:\n            return datetime.now().isoformat()\n    \n    df['create_time_clean'] = df['create_time'].apply(parse_time)\n    \n    # 5. 来源分类\n    def categorize_source(source):\n        if pd.isna(source):\n            return '其他'\n        source = str(source).lower()\n        if '官网' in source or 'website' in source:\n            return '官网'\n        elif '活动' in source or 'event' in source:\n            return '市场活动'\n        elif '广告' in source or 'ad' in source:\n            return '广告投放'\n        elif '转介绍' in source or 'referral' in source:\n            return '转介绍'\n        else:\n            return '其他'\n    \n    df['source_category'] = df['source'].apply(categorize_source)\n    \n    return {\n        'cleaned_leads': df.to_dict('records')",
+      "cleaned_count": "len(df)",
+      "cleaned_fields": [
+        "contact_clean",
+        "budget_clean",
+        "create_time_clean",
+        "source_category"
+      ]
+    },
+    "example_key": "clean_text",
+    "variables": {
+      "leads_df": "{{steps.input_check_1.output.leads_df}}"
+    },
+    "edges": [
+      {
+        "source": "agg_a2e92b86",
+        "target": "answer"
+      },
+      {
+        "source": "input_check_1",
+        "target": "agg_a2e92b86",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "input_check_1",
+        "target": "llm_fallback_517f5c8e",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "llm_fallback_517f5c8e",
+        "target": "agg_a2e92b86"
+      },
+      {
+        "source": "start_1",
+        "target": "input_check_1"
+      }
+    ],
+    "meta": {
+      "planning_mode": "llm_v2",
+      "model": "deepseek-chat",
+      "provider": "deepseek",
+      "prompt_version": "v2.1",
+      "schema_version": "wf-spec.v2",
+      "score": 66.1,
+      "selected_candidate_id": "cand_1",
+      "complexity_level": "complex",
+      "candidate_count": 3
+    },
+    "requirement_meta": {
+      "app_name": "市场活动线索全生命周期管理",
+      "description": "通过自动化与人工协作结合的方式，高效处理从多渠道采集的原始线索，实现从获取到转化（或沉淀）的全过程精细化管控。",
+      "scene": "generic",
+      "user_goal": "自动化处理多渠道线索，通过清洗、评分、分流、跟进与闭环管理，提升线索转化效率并防止流失。",
+      "inputs": [
+        {
+          "name": "raw_leads_data",
+          "label": "原始线索数据",
+          "type": "file",
+          "required": true
+        },
+        {
+          "name": "scoring_criteria",
+          "label": "智能评分规则/标准",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "budget_threshold",
+          "label": "预算分流阈值",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "source_priority_list",
+          "label": "线索来源优先级列表",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "vip_assignment_rules",
+          "label": "VIP专线手动指派规则",
+          "type": "paragraph",
+          "required": false
+        },
+        {
+          "name": "public_pool_matching_rules",
+          "label": "公海池自动匹配规则",
+          "type": "paragraph",
+          "required": false
+        },
+        {
+          "name": "timeout_duration",
+          "label": "销售跟进超时时长（小时）",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "first_contact_outcome_definitions",
+          "label": "首次触达结果定义（商机/战败/孵化）",
+          "type": "paragraph",
+          "required": false
+        }
+      ],
+      "output_contract": {
+        "final_outputs": [
+          "清洗并评分后的线索清单",
+          "VIP专线指派记录",
+          "公海池分发匹配报告",
+          "销售超时预警列表",
+          "转化商机列表",
+          "战败线索归档报告",
+          "转入孵化培育线索列表",
+          "全流程分析总结报告"
+        ],
+        "format": "结构化数据报告（如CSV/JSON）及可视化仪表板"
+      },
+      "capabilities": [
+        "input_check",
+        "intent_analysis",
+        "planning",
+        "retrieval",
+        "code_execution",
+        "tool_call",
+        "branching",
+        "generation",
+        "optimization",
+        "formatting"
+      ],
+      "node_preferences": {
+        "target_node_count": 12,
+        "need_private_kb": true,
+        "need_code_node": true,
+        "need_tools": true,
+        "need_branching": true
+      },
+      "runtime_config": {
+        "max_execution_time": "30分钟",
+        "error_handling": "关键节点失败时暂停并告警，支持从断点重试",
+        "data_persistence": "所有中间状态和结果自动保存",
+        "concurrency": "支持批量线索并行处理",
+        "model_tier": "deepseek-chat"
+      },
+      "constraints": [
+        "必须包含数据清洗、智能评分、基于预算/来源的分流、VIP手动指派、公海池自动匹配、超时预警、首次触达结果判断三大闭环出口等核心环节。",
+        "流程节点数需围绕12个进行设计。",
+        "需确保VIP专线与公海池分流逻辑的排他性。",
+        "超时预警机制需基于可配置的时长（默认72小时）。",
+        "最终输出必须清晰区分商机、战败、孵化三类结果。"
+      ]
+    }
+  }
+}

@@ -1,0 +1,533 @@
+{
+  "timestamp": "2026-04-16T09:02:59.330149",
+  "model_name": "deepseek-chat",
+  "provider": "deepseek",
+  "prompt_version": "v2.1",
+  "schema_version": "wf-spec.v2",
+  "requirement": {
+    "app_name": "电商订单履约工作流",
+    "description": "一个面向电商订单履约的中等复杂工作流，处理从订单创建到发货的全链路流程，包含库存预占、支付、物流、异常处理与审计日志。",
+    "scene": "generic",
+    "user_goal": "自动化、可靠地处理电商订单履约流程，确保库存锁定、支付成功、物流发货的顺利执行，并在异常时自动处理与通知，同时保证全链路操作可追溯。",
+    "inputs": [
+      {
+        "name": "order_event",
+        "label": "前端订单创建事件数据",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "output_contract": {
+      "final_order_status": "string",
+      "fulfillment_result": "string (success/partial_success/failure)",
+      "payment_transaction_id": "string (optional)",
+      "logistics_order_id": "string (optional)",
+      "audit_log_id": "string",
+      "error_messages": "array (optional)"
+    },
+    "capabilities": [
+      "input_check",
+      "intent_analysis",
+      "planning",
+      "tool_call",
+      "branching",
+      "generation",
+      "formatting"
+    ],
+    "node_preferences": {
+      "target_node_count": 8,
+      "need_private_kb": false,
+      "need_code_node": false,
+      "need_tools": true,
+      "need_branching": true
+    },
+    "runtime_config": {
+      "max_execution_time": "300s",
+      "retry_on_failure": true,
+      "max_retries": 2,
+      "concurrent_branches": true,
+      "model_tier": "deepseek-chat",
+      "allow_autofix_ifelse": false,
+      "allow_autowrap_fail_branch": false,
+      "max_fail_branch_nodes": 2
+    },
+    "constraints": []
+  },
+  "candidate_scores": [
+    {
+      "id": "cand_1",
+      "score": 93.667,
+      "ok": true,
+      "warnings": [
+        "工具节点 tool_inventory_lock url 已重写为白名单地址",
+        "工具节点 tool_payment url 已重写为白名单地址",
+        "工具节点 tool_logistics url 已重写为白名单地址",
+        "检测到 answer 存在多分支汇入，已插入 variable_aggregator=agg_bdeb9f01"
+      ],
+      "stats": {
+        "total_nodes": 12,
+        "type_counts": {
+          "start": 1,
+          "code": 2,
+          "ifelse": 2,
+          "tool": 3,
+          "variable_aggregator": 2,
+          "llm": 1,
+          "answer": 1
+        },
+        "non_llm_node_ratio": 0.9167,
+        "has_path_start_to_answer": true
+      },
+      "repair_rounds": 0
+    }
+  ],
+  "selected_candidate_id": "cand_1",
+  "selected_spec": {
+    "workflow_name": "电商订单履约工作流",
+    "description": "处理从订单创建到发货的全链路流程，包含库存预占、支付、物流、异常处理与审计日志",
+    "scene": "generic",
+    "inputs": [
+      {
+        "name": "order_event",
+        "label": "前端订单创建事件数据",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "output_contract": {
+      "final_order_status": "string",
+      "fulfillment_result": "string (success/partial_success/failure)",
+      "payment_transaction_id": "string (optional)",
+      "logistics_order_id": "string (optional)",
+      "audit_log_id": "string",
+      "error_messages": "array (optional)"
+    },
+    "steps": [
+      {
+        "id": "start",
+        "type": "start",
+        "title": "订单事件接收"
+      },
+      {
+        "id": "code_validate",
+        "type": "code",
+        "title": "订单数据验证",
+        "config": {
+          "language": "python",
+          "script": "import json\n\ndef validate_order(order_data):\n    try:\n        order = json.loads(order_data)\n        required_fields = ['order_id', 'customer_id', 'items', 'total_amount']\n        for field in required_fields:\n            if field not in order:\n                return {'valid': False, 'error': f'Missing required field: {field}'}\n        \n        if not isinstance(order['items'], list) or len(order['items']) == 0:\n            return {'valid': False, 'error': 'Items must be a non-empty list'}\n        \n        if order['total_amount'] <= 0:\n            return {'valid': False, 'error': 'Total amount must be positive'}\n        \n        return {'valid': True, 'order': order}\n    except json.JSONDecodeError:\n        return {'valid': False, 'error': 'Invalid JSON format'}\n\nresult = validate_order(input)\noutput = result",
+          "variables": [
+            {
+              "variable": "input",
+              "value_selector": [
+                "start",
+                "order_event"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "ifelse_validation",
+        "type": "ifelse",
+        "title": "验证结果判断",
+        "config": {
+          "cases": [
+            {
+              "id": "valid",
+              "logical_operator": "and",
+              "conditions": [
+                {
+                  "variable": "output.valid",
+                  "operator": "==",
+                  "value": true
+                }
+              ]
+            },
+            {
+              "id": "invalid",
+              "logical_operator": "and",
+              "conditions": [
+                {
+                  "variable": "output.valid",
+                  "operator": "==",
+                  "value": false
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "tool_inventory_lock",
+        "type": "tool",
+        "title": "库存预占",
+        "config": {
+          "method": "post",
+          "url": "https://httpbin.org/get",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "order_id": "{{order.order_id}}",
+            "items": "{{order.items}}",
+            "operation": "lock_inventory"
+          },
+          "variables": [
+            {
+              "variable": "order",
+              "value_selector": [
+                "code_validate",
+                "output.order"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "tool_payment",
+        "type": "tool",
+        "title": "支付处理",
+        "config": {
+          "method": "post",
+          "url": "https://httpbin.org/get",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "order_id": "{{order.order_id}}",
+            "amount": "{{order.total_amount}}",
+            "customer_id": "{{order.customer_id}}"
+          },
+          "variables": [
+            {
+              "variable": "order",
+              "value_selector": [
+                "code_validate",
+                "output.order"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "ifelse_payment",
+        "type": "ifelse",
+        "title": "支付结果判断",
+        "config": {
+          "cases": [
+            {
+              "id": "payment_success",
+              "logical_operator": "and",
+              "conditions": [
+                {
+                  "variable": "payment_result.status",
+                  "operator": "==",
+                  "value": "success"
+                }
+              ]
+            },
+            {
+              "id": "payment_failed",
+              "logical_operator": "and",
+              "conditions": [
+                {
+                  "variable": "payment_result.status",
+                  "operator": "==",
+                  "value": "failed"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "tool_logistics",
+        "type": "tool",
+        "title": "物流下单",
+        "config": {
+          "method": "post",
+          "url": "https://httpbin.org/get",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "order_id": "{{order.order_id}}",
+            "shipping_address": "{{order.shipping_address}}",
+            "items": "{{order.items}}"
+          },
+          "variables": [
+            {
+              "variable": "order",
+              "value_selector": [
+                "code_validate",
+                "output.order"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "code_audit_log",
+        "type": "code",
+        "title": "生成审计日志",
+        "config": {
+          "language": "python",
+          "script": "import json\nimport uuid\nimport datetime\n\ndef create_audit_log(order_data, inventory_result, payment_result, logistics_result):\n    log_id = str(uuid.uuid4())\n    timestamp = datetime.datetime.now().isoformat()\n    \n    audit_log = {\n        'audit_log_id': log_id,\n        'timestamp': timestamp,\n        'order_id': order_data.get('order_id'),\n        'customer_id': order_data.get('customer_id'),\n        'inventory_lock_result': inventory_result,\n        'payment_result': payment_result,\n        'logistics_result': logistics_result,\n        'workflow_status': 'completed'\n    }\n    \n    return audit_log\n\nlog_data = create_audit_log(order, inventory_result, payment_result, logistics_result)\noutput = log_data",
+          "variables": [
+            {
+              "variable": "order",
+              "value_selector": [
+                "code_validate",
+                "output.order"
+              ]
+            },
+            {
+              "variable": "inventory_result",
+              "value_selector": [
+                "tool_inventory_lock",
+                "output"
+              ]
+            },
+            {
+              "variable": "payment_result",
+              "value_selector": [
+                "tool_payment",
+                "output"
+              ]
+            },
+            {
+              "variable": "logistics_result",
+              "value_selector": [
+                "tool_logistics",
+                "output"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "variable_aggregator",
+        "type": "variable_aggregator",
+        "title": "结果聚合",
+        "config": {
+          "variables": [
+            {
+              "variable": "order_data",
+              "value_selector": [
+                "code_validate",
+                "output.order"
+              ]
+            },
+            {
+              "variable": "inventory_result",
+              "value_selector": [
+                "tool_inventory_lock",
+                "output"
+              ]
+            },
+            {
+              "variable": "payment_result",
+              "value_selector": [
+                "tool_payment",
+                "output"
+              ]
+            },
+            {
+              "variable": "logistics_result",
+              "value_selector": [
+                "tool_logistics",
+                "output"
+              ]
+            },
+            {
+              "variable": "audit_log",
+              "value_selector": [
+                "code_audit_log",
+                "output"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "llm_final_status",
+        "type": "llm",
+        "title": "生成最终状态",
+        "config": {
+          "prompt": "基于以下订单处理结果，生成最终的履约状态报告：\n\n订单数据：{{order_data}}\n库存预占结果：{{inventory_result}}\n支付处理结果：{{payment_result}}\n物流下单结果：{{logistics_result}}\n审计日志ID：{{audit_log.audit_log_id}}\n\n请输出JSON格式，包含以下字段：\n- final_order_status: 订单最终状态（processing/shipped/cancelled）\n- fulfillment_result: 履约结果（success/partial_success/failure）\n- payment_transaction_id: 支付交易ID（如果支付成功）\n- logistics_order_id: 物流订单ID（如果物流下单成功）\n- audit_log_id: 审计日志ID\n- error_messages: 错误信息数组（如果有错误）",
+          "variables": [
+            {
+              "variable": "order_data",
+              "value_selector": [
+                "variable_aggregator",
+                "order_data"
+              ]
+            },
+            {
+              "variable": "inventory_result",
+              "value_selector": [
+                "variable_aggregator",
+                "inventory_result"
+              ]
+            },
+            {
+              "variable": "payment_result",
+              "value_selector": [
+                "variable_aggregator",
+                "payment_result"
+              ]
+            },
+            {
+              "variable": "logistics_result",
+              "value_selector": [
+                "variable_aggregator",
+                "logistics_result"
+              ]
+            },
+            {
+              "variable": "audit_log",
+              "value_selector": [
+                "variable_aggregator",
+                "audit_log"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "answer",
+        "type": "answer",
+        "title": "返回履约结果"
+      },
+      {
+        "id": "agg_bdeb9f01",
+        "type": "variable_aggregator",
+        "title": "分支汇合",
+        "config": {}
+      }
+    ],
+    "edges": [
+      {
+        "source": "agg_bdeb9f01",
+        "target": "answer"
+      },
+      {
+        "source": "code_audit_log",
+        "target": "variable_aggregator"
+      },
+      {
+        "source": "code_validate",
+        "target": "ifelse_validation"
+      },
+      {
+        "source": "ifelse_payment",
+        "target": "agg_bdeb9f01",
+        "branch": "payment_failed"
+      },
+      {
+        "source": "ifelse_payment",
+        "target": "tool_logistics",
+        "branch": "payment_success"
+      },
+      {
+        "source": "ifelse_validation",
+        "target": "agg_bdeb9f01",
+        "branch": "invalid"
+      },
+      {
+        "source": "ifelse_validation",
+        "target": "tool_inventory_lock",
+        "branch": "valid"
+      },
+      {
+        "source": "llm_final_status",
+        "target": "agg_bdeb9f01"
+      },
+      {
+        "source": "start",
+        "target": "code_validate"
+      },
+      {
+        "source": "tool_inventory_lock",
+        "target": "tool_payment"
+      },
+      {
+        "source": "tool_logistics",
+        "target": "code_audit_log"
+      },
+      {
+        "source": "tool_payment",
+        "target": "ifelse_payment"
+      },
+      {
+        "source": "variable_aggregator",
+        "target": "llm_final_status"
+      }
+    ],
+    "meta": {
+      "inserted_aggregators": 1,
+      "allow_autofix_ifelse": false,
+      "allow_autowrap_fail_branch": false,
+      "max_fail_branch_nodes": 2,
+      "autofix_warnings": 1,
+      "planning_mode": "llm_v2",
+      "model": "deepseek-chat",
+      "provider": "deepseek",
+      "prompt_version": "v2.1",
+      "schema_version": "wf-spec.v2",
+      "score": 93.667,
+      "selected_candidate_id": "cand_1",
+      "complexity_level": "complex",
+      "candidate_count": 3
+    },
+    "requirement_meta": {
+      "app_name": "电商订单履约工作流",
+      "description": "一个面向电商订单履约的中等复杂工作流，处理从订单创建到发货的全链路流程，包含库存预占、支付、物流、异常处理与审计日志。",
+      "scene": "generic",
+      "user_goal": "自动化、可靠地处理电商订单履约流程，确保库存锁定、支付成功、物流发货的顺利执行，并在异常时自动处理与通知，同时保证全链路操作可追溯。",
+      "inputs": [
+        {
+          "name": "order_event",
+          "label": "前端订单创建事件数据",
+          "type": "text",
+          "required": true
+        }
+      ],
+      "output_contract": {
+        "final_order_status": "string",
+        "fulfillment_result": "string (success/partial_success/failure)",
+        "payment_transaction_id": "string (optional)",
+        "logistics_order_id": "string (optional)",
+        "audit_log_id": "string",
+        "error_messages": "array (optional)"
+      },
+      "capabilities": [
+        "input_check",
+        "intent_analysis",
+        "planning",
+        "tool_call",
+        "branching",
+        "generation",
+        "formatting"
+      ],
+      "node_preferences": {
+        "target_node_count": 8,
+        "need_private_kb": false,
+        "need_code_node": false,
+        "need_tools": true,
+        "need_branching": true
+      },
+      "runtime_config": {
+        "max_execution_time": "300s",
+        "retry_on_failure": true,
+        "max_retries": 2,
+        "concurrent_branches": true,
+        "model_tier": "deepseek-chat",
+        "allow_autofix_ifelse": false,
+        "allow_autowrap_fail_branch": false,
+        "max_fail_branch_nodes": 2
+      },
+      "constraints": []
+    }
+  }
+}

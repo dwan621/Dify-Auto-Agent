@@ -202,6 +202,8 @@ PROMPT_VERSION = "v2.1"
 SCHEMA_VERSION = "wf-spec.v2"
 MAX_NODE_LIMIT = 24
 DEFAULT_ALLOW_AUTOFIX_IFELSE = False
+DEFAULT_ALLOW_AUTOWRAP_FAIL_BRANCH = False
+DEFAULT_MAX_FAIL_BRANCH_NODES = 2
 SAFE_TOOL_HOSTS = {
     "httpbin.org",
     "api.github.com",
@@ -475,6 +477,8 @@ def _normalize_requirement_v2(requirement: dict, user_input: str) -> dict:
     runtime_config = result["runtime_config"] if isinstance(result["runtime_config"], dict) else {}
     runtime_config.setdefault("model_tier", DEEPSEEK_MODEL)
     runtime_config.setdefault("allow_autofix_ifelse", DEFAULT_ALLOW_AUTOFIX_IFELSE)
+    runtime_config.setdefault("allow_autowrap_fail_branch", DEFAULT_ALLOW_AUTOWRAP_FAIL_BRANCH)
+    runtime_config.setdefault("max_fail_branch_nodes", DEFAULT_MAX_FAIL_BRANCH_NODES)
     result["runtime_config"] = runtime_config
 
     if not isinstance(result["constraints"], list):
@@ -559,7 +563,7 @@ workflow_name, description, scene, inputs, output_contract, steps, edges
 1) 必须包含一个 start 节点和一个 answer 节点。图必须连通，且逻辑严谨、符合实际业务需求。
 2) edges 里的 source/target 必须引用 steps 里的 id。避免生成无意义的悬空节点。
 2.1) ifelse 的分支连边用 edges[].branch 表达，branch 值应与 steps[].config.cases[].id 对齐
-2.2) code/tool 如需失败兜底，可设置 steps[].config.error_strategy="fail-branch"，并在 edges 中用 edges[].source_handle 指定 success-branch / fail-branch。⚠️警告：请克制使用 fail-branch，仅在极核心的风险节点使用，避免图结构过度臃肿！
+2.2) 默认不要使用失败兜底。仅当确有必要且风险极高时，才允许在最多 1 个 code/tool 节点上设置 steps[].config.error_strategy="fail-branch"，并且必须同时提供两条出边（edges[].source_handle=success-branch 与 fail-branch）。除该节点外不要再出现 fail-branch。
 2.3) 若步骤中包含 llm_plan 且后面存在 ifelse_route，请让 llm_plan 输出可稳定匹配的 ROUTE=knowledge/compute/tool/direct 标记
 3) steps 至少 3 个，最多 {MAX_NODE_LIMIT} 个。请保持拓扑结构简单清晰。
 4) 如使用 tool 节点，config.url 只能是以下主机之一：{sorted(list(SAFE_TOOL_HOSTS))}
@@ -1044,9 +1048,6 @@ def _ensure_ifelse_branch_edges(spec: dict, allow_autofix: bool = False) -> list
 
         if not case_ids:
             continue
-            
-        if "false" not in case_ids:
-            case_ids.append("false")
 
         outgoing = [e for e in edges if isinstance(e, dict) and e.get("source") == sid]
         existing_branches = {str(e.get("branch")) for e in outgoing if e.get("branch")}
@@ -1060,6 +1061,54 @@ def _ensure_ifelse_branch_edges(spec: dict, allow_autofix: bool = False) -> list
                 warnings.append(f"ifelse {sid} 缺少分支 {case_id}（严格模式未自动补边）")
 
     spec["edges"] = _sorted_edges(edges)
+    return warnings
+
+
+def _prune_invalid_ifelse_outgoing_edges(spec: dict) -> list[str]:
+    warnings: list[str] = []
+    steps = spec.get("steps", [])
+    edges = spec.get("edges", [])
+    if not isinstance(steps, list) or not isinstance(edges, list):
+        return warnings
+
+    step_by_id = {s.get("id"): s for s in steps if isinstance(s, dict) and s.get("id")}
+    step_type_map = {sid: step_by_id[sid].get("type") for sid in step_by_id}
+    ifelse_case_map: dict[str, set[str]] = {}
+    for sid, step in step_by_id.items():
+        if step_type_map.get(sid) != "ifelse":
+            continue
+        cfg = step.get("config", {}) if isinstance(step.get("config"), dict) else {}
+        raw_cases = cfg.get("cases", [])
+        case_ids: set[str] = set()
+        if isinstance(raw_cases, list):
+            for c in raw_cases:
+                if not isinstance(c, dict):
+                    continue
+                cid = c.get("id") or c.get("case_id")
+                if cid:
+                    case_ids.add(str(cid))
+        ifelse_case_map[str(sid)] = case_ids
+
+    new_edges: list[dict] = []
+    for e in edges:
+        if not isinstance(e, dict):
+            continue
+        src = e.get("source")
+        if not src or step_type_map.get(src) != "ifelse":
+            new_edges.append(e)
+            continue
+        branch = e.get("branch")
+        if not branch:
+            warnings.append(f"已移除 ifelse {src} 的无 branch 出边: {src}->{e.get('target')}")
+            continue
+        branch = str(branch)
+        case_ids = ifelse_case_map.get(str(src), set())
+        if case_ids and branch not in case_ids:
+            warnings.append(f"已移除 ifelse {src} 的无效分支出边 branch={branch}: {src}->{e.get('target')}")
+            continue
+        new_edges.append(e)
+
+    spec["edges"] = _sorted_edges(new_edges)
     return warnings
 
 
@@ -1128,7 +1177,217 @@ def _insert_variable_aggregators_for_conditional_merges(spec: dict) -> list[str]
     return warnings
 
 
-def _wrap_exec_node_with_fail_branch(spec: dict) -> list[str]:
+def _prune_fail_branch_wrappers(spec: dict) -> list[str]:
+    warnings: list[str] = []
+    steps = spec.get("steps", [])
+    edges = spec.get("edges", [])
+    if not isinstance(steps, list) or not isinstance(edges, list):
+        return warnings
+
+    step_by_id = {s.get("id"): s for s in steps if isinstance(s, dict) and s.get("id")}
+    incoming: dict[str, list[dict]] = {}
+    outgoing: dict[str, list[dict]] = {}
+    for e in edges:
+        if not isinstance(e, dict):
+            continue
+        src = e.get("source")
+        tgt = e.get("target")
+        if src:
+            outgoing.setdefault(src, []).append(e)
+        if tgt:
+            incoming.setdefault(tgt, []).append(e)
+
+    nodes_to_remove: set[str] = set()
+    new_edges = [e for e in edges if isinstance(e, dict)]
+
+    for step in steps:
+        if not isinstance(step, dict):
+            continue
+        stype = step.get("type")
+        if stype not in {"tool", "code"}:
+            continue
+        sid = step.get("id")
+        if not sid:
+            continue
+        cfg = step.get("config", {}) if isinstance(step.get("config"), dict) else {}
+        if cfg.get("error_strategy") != "fail-branch":
+            continue
+
+        outs = outgoing.get(sid, [])
+        success_edge = next((e for e in outs if str(e.get("source_handle") or "") == "success-branch"), None)
+        fail_edge = next((e for e in outs if str(e.get("source_handle") or "") == "fail-branch"), None)
+        if not success_edge or not fail_edge:
+            continue
+
+        agg_id = success_edge.get("target")
+        fallback_id = fail_edge.get("target")
+        if not agg_id or not fallback_id:
+            continue
+
+        agg_step = step_by_id.get(agg_id)
+        fallback_step = step_by_id.get(fallback_id)
+        if not isinstance(agg_step, dict) or agg_step.get("type") != "variable_aggregator":
+            continue
+        if not isinstance(fallback_step, dict) or fallback_step.get("type") != "llm":
+            continue
+
+        if len(incoming.get(agg_id, [])) != 2:
+            continue
+        if len(incoming.get(fallback_id, [])) != 1 or incoming.get(fallback_id, [])[0].get("source") != sid:
+            continue
+        if len(outgoing.get(fallback_id, [])) != 1 or outgoing.get(fallback_id, [])[0].get("target") != agg_id:
+            continue
+
+        agg_outs = [e for e in outgoing.get(agg_id, []) if isinstance(e, dict) and e.get("target")]
+        if not agg_outs:
+            continue
+        targets = [e.get("target") for e in agg_outs if e.get("target")]
+        if not targets:
+            continue
+
+        fallback_prompt = str(fallback_step.get("prompt") or "").strip()
+        fallback_title = str(fallback_step.get("title") or "").strip()
+        if not (str(fallback_id).startswith("llm_fallback") or fallback_title == "失败兜底" or fallback_prompt.startswith("上游执行失败")):
+            continue
+
+        cfg.pop("error_strategy", None)
+        step["config"] = cfg
+
+        nodes_to_remove.add(agg_id)
+        nodes_to_remove.add(fallback_id)
+
+        new_edges = [
+            e for e in new_edges
+            if not (
+                (e.get("source") == sid and e.get("target") in {agg_id, fallback_id})
+                or (e.get("source") == fallback_id)
+                or (e.get("source") == agg_id)
+                or (e.get("target") in {agg_id, fallback_id})
+            )
+        ]
+        for tid in targets:
+            new_edges.append({"source": sid, "target": tid})
+        warnings.append(f"已移除 {sid} 的 fail-branch 兜底链路并恢复简化连线")
+
+    if nodes_to_remove:
+        spec["steps"] = [s for s in steps if isinstance(s, dict) and s.get("id") not in nodes_to_remove]
+        spec["edges"] = _sorted_edges(new_edges)
+    return warnings
+
+
+def _enforce_fail_branch_budget(spec: dict, max_fail_branch_nodes: int = 0) -> list[str]:
+    warnings: list[str] = []
+    steps = spec.get("steps", [])
+    edges = spec.get("edges", [])
+    if not isinstance(steps, list) or not isinstance(edges, list):
+        return warnings
+    if max_fail_branch_nodes < 0:
+        max_fail_branch_nodes = 0
+
+    candidates: list[tuple[int, int, str]] = []
+    ordered_ids: list[str] = []
+    for idx, step in enumerate(steps):
+        if not isinstance(step, dict):
+            continue
+        sid = step.get("id")
+        if not sid:
+            continue
+        stype = step.get("type")
+        if stype not in {"tool", "code"}:
+            continue
+        cfg = step.get("config", {}) if isinstance(step.get("config"), dict) else {}
+        if cfg.get("error_strategy") == "fail-branch":
+            sid_str = str(sid)
+            ordered_ids.append(sid_str)
+            name = sid_str.lower()
+            priority = 0
+            if any(k in name for k in ["ftp", "download", "db", "database", "write", "upload", "http", "request"]):
+                priority += 3
+            if any(k in name for k in ["clean", "enrich", "geo", "risk"]):
+                priority += 1
+            candidates.append((priority, idx, sid_str))
+
+    if len(candidates) <= max_fail_branch_nodes:
+        return warnings
+
+    keep = set()
+    for priority, idx, sid in sorted(candidates, key=lambda x: (-x[0], x[1]))[:max_fail_branch_nodes]:
+        keep.add(sid)
+    to_drop = set(ordered_ids) - keep
+    for step in steps:
+        if not isinstance(step, dict):
+            continue
+        sid = str(step.get("id") or "")
+        if not sid or sid not in to_drop:
+            continue
+        cfg = step.get("config", {}) if isinstance(step.get("config"), dict) else {}
+        if cfg.get("error_strategy") == "fail-branch":
+            cfg.pop("error_strategy", None)
+            step["config"] = cfg
+
+    spec["edges"] = _sorted_edges([
+        e for e in edges
+        if not (
+            isinstance(e, dict)
+            and str(e.get("source") or "") in to_drop
+            and str(e.get("source_handle") or "") in {"success-branch", "fail-branch"}
+        )
+    ])
+    warnings.append(f"已限制 fail-branch 节点数量为 {max_fail_branch_nodes}，并移除多余 fail-branch 配置")
+    return warnings
+
+
+def _prune_orphan_fallback_nodes(spec: dict) -> list[str]:
+    warnings: list[str] = []
+    steps = spec.get("steps", [])
+    edges = spec.get("edges", [])
+    if not isinstance(steps, list) or not isinstance(edges, list):
+        return warnings
+
+    incoming: dict[str, int] = {}
+    outgoing: dict[str, int] = {}
+    for e in edges:
+        if not isinstance(e, dict):
+            continue
+        src = e.get("source")
+        tgt = e.get("target")
+        if src:
+            outgoing[str(src)] = outgoing.get(str(src), 0) + 1
+        if tgt:
+            incoming[str(tgt)] = incoming.get(str(tgt), 0) + 1
+
+    remove_ids: set[str] = set()
+    for step in steps:
+        if not isinstance(step, dict):
+            continue
+        sid = str(step.get("id") or "")
+        if not sid:
+            continue
+        stype = step.get("type")
+        title = str(step.get("title") or "")
+        prompt = str(step.get("prompt") or "")
+        is_fallback_llm = (stype == "llm") and (sid.startswith("llm_fallback") or title == "失败兜底" or prompt.startswith("上游执行失败"))
+        is_fallback_agg = (stype == "variable_aggregator") and (sid.startswith("agg_") or title == "结果汇合")
+        if not (is_fallback_llm or is_fallback_agg):
+            continue
+        inc = incoming.get(sid, 0)
+        out = outgoing.get(sid, 0)
+        if inc == 0 or out == 0:
+            remove_ids.add(sid)
+
+    if not remove_ids:
+        return warnings
+
+    spec["steps"] = [s for s in steps if isinstance(s, dict) and str(s.get("id") or "") not in remove_ids]
+    spec["edges"] = _sorted_edges([
+        e for e in edges
+        if isinstance(e, dict) and str(e.get("source") or "") not in remove_ids and str(e.get("target") or "") not in remove_ids
+    ])
+    warnings.append(f"已清理孤立兜底节点: {sorted(remove_ids)}")
+    return warnings
+
+
+def _wrap_exec_node_with_fail_branch(spec: dict, allow_autowrap: bool = False) -> list[str]:
     warnings: list[str] = []
     steps = spec.get("steps", [])
     edges = spec.get("edges", [])
@@ -1164,15 +1423,25 @@ def _wrap_exec_node_with_fail_branch(spec: dict) -> list[str]:
             continue
         outs = outgoing.get(sid, [])
         if not outs:
-            if error_strategy == "fail-branch":
-                cfg.pop("error_strategy", None)
-                step["config"] = cfg
+            cfg.pop("error_strategy", None)
+            step["config"] = cfg
             continue
-        if error_strategy == "fail-branch":
-            handles = {str(e.get("source_handle") or e.get("branch") or "source") for e in outs if isinstance(e, dict)}
-            if "success-branch" in handles or "fail-branch" in handles:
-                # 只要 LLM 已经生成了任何相关的分支 handle，我们就不再自动包装，避免冲突
-                continue
+        handles = {str(e.get("source_handle") or e.get("branch") or "source") for e in outs if isinstance(e, dict)}
+        has_any_branch_handle = ("success-branch" in handles) or ("fail-branch" in handles)
+        if not allow_autowrap and not has_any_branch_handle:
+            cfg.pop("error_strategy", None)
+            step["config"] = cfg
+            for e in outs:
+                if not isinstance(e, dict):
+                    continue
+                if str(e.get("source_handle") or "") in {"success-branch", "fail-branch"}:
+                    e.pop("source_handle", None)
+            warnings.append(f"已移除 {sid} 的 fail-branch 配置以避免生成冗余兜底节点")
+            continue
+        if not allow_autowrap:
+            continue
+        if has_any_branch_handle:
+            continue
         target_ids = [e.get("target") for e in outs if e.get("target")]
         if not target_ids:
             continue
@@ -1220,8 +1489,6 @@ def _wrap_exec_node_with_fail_branch(spec: dict) -> list[str]:
         new_edges = [e for e in new_edges if e not in other_unhandled_outs]
         for oe in other_unhandled_outs:
             new_edges.append({"source": agg_id, "target": oe.get("target")})
-            
-        print(f"DEBUG: other_unhandled_outs for {sid}: {other_unhandled_outs}", flush=True)
 
         warnings.append(f"为 {sid} 启用 fail-branch 并插入兜底链路（{fallback_llm_id}->{agg_id}->{primary_target}）")
 
@@ -1306,15 +1573,23 @@ def normalize_workflow_spec_v2(spec: dict, requirement: dict | None = None) -> t
     if isinstance(requirement, dict) and isinstance(requirement.get("runtime_config"), dict):
         runtime_cfg = requirement.get("runtime_config", {})
     allow_autofix_ifelse = bool(runtime_cfg.get("allow_autofix_ifelse", DEFAULT_ALLOW_AUTOFIX_IFELSE))
+    allow_autowrap_fail_branch = bool(runtime_cfg.get("allow_autowrap_fail_branch", DEFAULT_ALLOW_AUTOWRAP_FAIL_BRANCH))
+    max_fail_branch_nodes = int(runtime_cfg.get("max_fail_branch_nodes", DEFAULT_MAX_FAIL_BRANCH_NODES) or 0)
 
+    warnings.extend(_prune_fail_branch_wrappers(normalized))
+    warnings.extend(_enforce_fail_branch_budget(normalized, max_fail_branch_nodes=max_fail_branch_nodes))
+    warnings.extend(_prune_orphan_fallback_nodes(normalized))
     warnings.extend(_prune_redundant_nodes(normalized))
     warnings.extend(_normalize_edge_semantics(normalized))
+    warnings.extend(_prune_invalid_ifelse_outgoing_edges(normalized))
     warnings.extend(_ensure_ifelse_branch_edges(normalized, allow_autofix=allow_autofix_ifelse))
-    warnings.extend(_wrap_exec_node_with_fail_branch(normalized))
+    warnings.extend(_wrap_exec_node_with_fail_branch(normalized, allow_autowrap=allow_autowrap_fail_branch))
     warnings.extend(_insert_variable_aggregators_for_conditional_merges(normalized))
     normalized["edges"] = _sorted_edges(normalized.get("edges", []))
     normalized.setdefault("meta", {})
     normalized["meta"]["allow_autofix_ifelse"] = allow_autofix_ifelse
+    normalized["meta"]["allow_autowrap_fail_branch"] = allow_autowrap_fail_branch
+    normalized["meta"]["max_fail_branch_nodes"] = max_fail_branch_nodes
     autofix_warnings = [w for w in warnings if "已" in w]
     normalized["meta"]["autofix_warnings"] = len(autofix_warnings)
     if autofix_warnings:
@@ -3358,26 +3633,61 @@ def _find_latest_text_sources(edges: list, step_type_map: dict, current_step_id:
 
     return valid_sources
 
+NODE_OUTPUT_FIELD_MAP = {
+    "llm": "text",
+    "template": "output",
+    "ifelse": "result",
+    "knowledge_retrieval": "result",
+    "code": "result",
+    "tool": "body",
+    "parameter_extract": "text",
+    "variable_aggregator": "output",
+    "iteration": "text",
+    "loop": "text",
+}
+
+_SPEC_INPUT_REF_RE = re.compile(r"\{\{\s*inputs\.([a-zA-Z0-9_]+)\s*\}\}")
+_SPEC_STEP_REF_RE = re.compile(r"\{\{\s*steps\.([a-zA-Z0-9_]+)\.output(?:\.[a-zA-Z0-9_]+)?\s*\}\}")
+
+def _spec_ref_to_value_selector(ref: str, inputs: list, step_type_map: dict) -> list[str] | None:
+    if not isinstance(ref, str):
+        return None
+    text = ref.strip()
+    m = _SPEC_INPUT_REF_RE.fullmatch(text)
+    if m:
+        name = m.group(1)
+        return ["start", name]
+    m = _SPEC_STEP_REF_RE.fullmatch(text)
+    if m:
+        step_id = m.group(1)
+        stype = step_type_map.get(step_id, "llm")
+        if step_id == "start":
+            first_input_name = inputs[0]["name"] if inputs else "user_request"
+            return ["start", first_input_name]
+        field = NODE_OUTPUT_FIELD_MAP.get(stype, "text")
+        return [step_id, field]
+    return None
+
+def _convert_spec_placeholders_to_dify(text: str, inputs: list, step_type_map: dict) -> str:
+    if not isinstance(text, str) or not text:
+        return ""
+    converted = _SPEC_INPUT_REF_RE.sub(lambda m: f"{{{{#start.{m.group(1)}#}}}}", text)
+    def _step_repl(m):
+        step_id = m.group(1)
+        stype = step_type_map.get(step_id, "llm")
+        if step_id == "start":
+            first_input_name = inputs[0]["name"] if inputs else "user_request"
+            return f"{{{{#start.{first_input_name}#}}}}"
+        field = NODE_OUTPUT_FIELD_MAP.get(stype, "text")
+        return f"{{{{#{step_id}.{field}#}}}}"
+    converted = _SPEC_STEP_REF_RE.sub(_step_repl, converted)
+    return converted
+
 def _resolve_prompt_input_var(step_type: str, step_id: str) -> str:
-    if step_type == "llm":
-        return f"{{{{#{step_id}.text#}}}}"
-    if step_type == "template":
-        return f"{{{{#{step_id}.output#}}}}"
-    if step_type == "knowledge_retrieval":
-        return f"{{{{#{step_id}.result#}}}}"
-    if step_type == "code":
-        return f"{{{{#{step_id}.result#}}}}"
-    if step_type == "tool":
-        return f"{{{{#{step_id}.body#}}}}"
-    if step_type == "parameter_extract":
-        return f"{{{{#{step_id}.text#}}}}"
-    if step_type == "variable_aggregator":
-        return f"{{{{#{step_id}.output#}}}}"
-    if step_type == "iteration":
-        return f"{{{{#{step_id}.text#}}}}"
-    if step_type == "loop":
-        return f"{{{{#{step_id}.text#}}}}"
-    return ""
+    if step_type == "ifelse":
+        return ""
+    field = NODE_OUTPUT_FIELD_MAP.get(step_type, "text")
+    return f"{{{{#{step_id}.{field}#}}}}"
 
 
 def _build_llm_prompt(
@@ -3387,7 +3697,9 @@ def _build_llm_prompt(
     step_type_map: dict,
     current_step_id: str
 ) -> str:
-    prompt = step.get("prompt", "").strip()
+    cfg = step.get("config", {}) if isinstance(step.get("config"), dict) else {}
+    prompt = (step.get("prompt") or cfg.get("prompt") or "").strip()
+    prompt = _convert_spec_placeholders_to_dify(prompt, inputs, step_type_map).strip()
 
     if not prompt:
         prompt = "请根据用户输入完成任务。"
@@ -3422,6 +3734,14 @@ def _build_llm_prompt(
     if prev_block:
         final_prompt += "\n\n" + "\n".join(prev_block)
 
+    guard = []
+    if ("只输出" not in final_prompt) and ("不要输出" not in final_prompt):
+        guard.append("输出要求：")
+        guard.append("- 只输出最终结果，不要输出推理过程或解释")
+        guard.append("- 不要输出 markdown 代码块围栏（```）")
+    if guard:
+        final_prompt += "\n\n" + "\n".join(guard)
+
     return final_prompt.strip()
 
 
@@ -3449,27 +3769,8 @@ def _find_answer_source_id(edges: list, answer_step_id: str) -> str | None:
     return None
 
 def _resolve_output_var(step_type: str, step_id: str) -> str:
-    if step_type == "llm":
-        return f"{{{{#{step_id}.text#}}}}"
-    if step_type == "template":
-        return f"{{{{#{step_id}.output#}}}}"
-    if step_type == "ifelse":
-        return f"{{{{#{step_id}.result#}}}}"
-    if step_type == "knowledge_retrieval":
-        return f"{{{{#{step_id}.result#}}}}"
-    if step_type == "code":
-        return f"{{{{#{step_id}.result#}}}}"
-    if step_type == "tool":
-        return f"{{{{#{step_id}.body#}}}}"
-    if step_type == "parameter_extract":
-        return f"{{{{#{step_id}.text#}}}}"
-    if step_type == "variable_aggregator":
-        return f"{{{{#{step_id}.output#}}}}"
-    if step_type == "iteration":
-        return f"{{{{#{step_id}.text#}}}}"
-    if step_type == "loop":
-        return f"{{{{#{step_id}.text#}}}}"
-    return f"{{{{#{step_id}.text#}}}}"
+    field = NODE_OUTPUT_FIELD_MAP.get(step_type, "text")
+    return f"{{{{#{step_id}.{field}#}}}}"
 
 
 def _headers_to_dify_string(headers: Any) -> str:
@@ -3484,7 +3785,7 @@ def _headers_to_dify_string(headers: Any) -> str:
     return ""
 
 
-def _resolve_tool_config(step: dict) -> dict:
+def _resolve_tool_config(step: dict, inputs: list, step_type_map: dict) -> dict:
     config = step.get("config", {}) if isinstance(step, dict) else {}
     if not isinstance(config, dict):
         config = {}
@@ -3508,9 +3809,17 @@ def _resolve_tool_config(step: dict) -> dict:
     if isinstance(body_template, str) and body_template.strip() and method in {"post", "put", "patch"}:
         body = {"type": "raw-text", "data": body_template}
 
-    variables = config.get("variables", [])
-    if not isinstance(variables, list):
-        variables = []
+    raw_variables = config.get("variables", [])
+    variables = []
+    if isinstance(raw_variables, list):
+        variables = raw_variables
+    elif isinstance(raw_variables, dict):
+        for k, v in raw_variables.items():
+            if not k:
+                continue
+            selector = _spec_ref_to_value_selector(str(v), inputs, step_type_map)
+            if selector:
+                variables.append({"variable": str(k), "value_selector": selector})
 
     return {
         "method": method,
@@ -3522,7 +3831,7 @@ def _resolve_tool_config(step: dict) -> dict:
     }
 
 
-def _resolve_code_config(step: dict, inputs: list) -> dict:
+def _resolve_code_config(step: dict, inputs: list, step_type_map: dict) -> dict:
     config = step.get("config", {}) if isinstance(step, dict) else {}
     if not isinstance(config, dict):
         config = {}
@@ -3540,8 +3849,18 @@ def _resolve_code_config(step: dict, inputs: list) -> dict:
     else:
         code = CODE_TEMPLATE_LIBRARY["clean_text"]
 
-    variables = config.get("variables", [])
-    if not isinstance(variables, list) or not variables:
+    raw_variables = config.get("variables", [])
+    variables = []
+    if isinstance(raw_variables, list):
+        variables = raw_variables
+    elif isinstance(raw_variables, dict):
+        for k, v in raw_variables.items():
+            if not k:
+                continue
+            selector = _spec_ref_to_value_selector(str(v), inputs, step_type_map)
+            if selector:
+                variables.append({"variable": str(k), "value_selector": selector})
+    if not variables:
         variables = [{"variable": "input_text", "value_selector": ["start", first_input_name]}]
 
     outputs = config.get("outputs", {})
@@ -3641,15 +3960,52 @@ def compile_workflow_spec_to_dify_yaml(spec: dict) -> str:
     step_id_map = {}
     step_type_map = _get_step_type_map(steps)
 
-    x_base = 80
-    x_gap = 300
-    y_base = 280
+    def _calculate_node_positions(steps: list, edges: list) -> dict:
+        node_ids = [s.get("id") for s in steps if isinstance(s, dict) and s.get("id")]
+        adj = {sid: [] for sid in node_ids}
+        in_degree = {sid: 0 for sid in node_ids}
+        for edge in edges:
+            source = edge.get("source")
+            target = edge.get("target")
+            if source in adj and target in in_degree:
+                adj[source].append(target)
+                in_degree[target] += 1
+                
+        queue = [sid for sid in node_ids if in_degree.get(sid, 0) == 0]
+        levels = {sid: 0 for sid in node_ids}
+        
+        while queue:
+            curr = queue.pop(0)
+            for neighbor in adj.get(curr, []):
+                levels[neighbor] = max(levels[neighbor], levels[curr] + 1)
+                in_degree[neighbor] -= 1
+                if in_degree[neighbor] == 0:
+                    queue.append(neighbor)
+                    
+        positions = {}
+        x_base = 80
+        x_gap = 300
+        y_base = 280
+        y_gap = 150
+        
+        level_counts = {}
+        for node_id, level in levels.items():
+            count = level_counts.get(level, 0)
+            positions[node_id] = {
+                "x": x_base + level * x_gap,
+                "y": y_base + count * y_gap
+            }
+            level_counts[level] = count + 1
+            
+        return positions
 
-
-    branch_y_map = _normalize_branch_y_map(y_base)
-
-    step_branch_map = _build_step_branch_map(edges)
-
+    node_positions = _calculate_node_positions(steps, edges)
+    scene = spec.get("scene", "generic")
+    output_contract = spec.get("output_contract", {}) or {}
+    answer_step_id = next((s.get("id") for s in steps if isinstance(s, dict) and s.get("type") == "answer" and s.get("id")), None)
+    answer_source_id = _find_answer_source_id(edges, answer_step_id) if answer_step_id else None
+    formatting_prompt = build_formatting_prompt(scene, output_contract) if output_contract else ""
+    formatting_target_llm_id = answer_source_id if answer_source_id and step_type_map.get(answer_source_id) == "llm" else None
 
     # 先编译节点
     for idx, step in enumerate(steps):
@@ -3657,14 +4013,15 @@ def compile_workflow_spec_to_dify_yaml(spec: dict) -> str:
         step_id = step.get("id", _new_id(step_type or "node"))
         step_title = step.get("title", step_id)
 
-        branch_name = step_branch_map.get(step_id)
-        node_y = branch_y_map.get(branch_name, y_base)
+        pos = node_positions.get(step_id, {"x": 80, "y": 280})
+        node_x = pos["x"]
+        node_y = pos["y"]
 
         if step_type == "start":
             node = copy.deepcopy(start_seed)
             node["id"] = step_id
-            node["position"] = {"x": x_base + idx * x_gap, "y": node_y}
-            node["positionAbsolute"] = {"x": x_base + idx * x_gap, "y": node_y}
+            node["position"] = {"x": node_x, "y": node_y}
+            node["positionAbsolute"] = {"x": node_x, "y": node_y}
 
             node["data"]["title"] = step_title
             node["data"]["variables"] = _build_start_variables(inputs)
@@ -3672,8 +4029,8 @@ def compile_workflow_spec_to_dify_yaml(spec: dict) -> str:
         elif step_type == "llm":
             node = copy.deepcopy(llm_seed)
             node["id"] = step_id
-            node["position"] = {"x": x_base + idx * x_gap, "y": node_y}
-            node["positionAbsolute"] = {"x": x_base + idx * x_gap, "y": node_y}
+            node["position"] = {"x": node_x, "y": node_y}
+            node["positionAbsolute"] = {"x": node_x, "y": node_y}
 
             node["data"]["title"] = step_title
 
@@ -3685,11 +4042,8 @@ def compile_workflow_spec_to_dify_yaml(spec: dict) -> str:
                 current_step_id=step_id
             )
 
-            if step_id == "llm_generate":
-                scene = spec.get("scene", "generic")
-                output_contract = spec.get("output_contract", {}) or {}
-                format_prompt = build_formatting_prompt(scene, output_contract)
-                prompt_text = prompt_text + "\n\n" + format_prompt
+            if formatting_prompt and (step_id in {"llm_generate", formatting_target_llm_id}):
+                prompt_text = prompt_text + "\n\n" + formatting_prompt
 
             # 兼容 prompt_template 结构
             if "prompt_template" in node["data"] and node["data"]["prompt_template"]:
@@ -3707,8 +4061,8 @@ def compile_workflow_spec_to_dify_yaml(spec: dict) -> str:
         elif step_type == "ifelse":
             node = copy.deepcopy(ifelse_seed)
             node["id"] = step_id
-            node["position"] = {"x": x_base + idx * x_gap, "y": node_y}
-            node["positionAbsolute"] = {"x": x_base + idx * x_gap, "y": node_y}
+            node["position"] = {"x": node_x, "y": node_y}
+            node["positionAbsolute"] = {"x": node_x, "y": node_y}
 
             node["data"]["title"] = step_title
 
@@ -3741,14 +4095,38 @@ def compile_workflow_spec_to_dify_yaml(spec: dict) -> str:
                     ]
                 })
 
+            existing_case_ids = {str(c.get("case_id") or c.get("id")) for c in node["data"]["cases"] if isinstance(c, dict)}
+            outgoing_edges = [e for e in edges if isinstance(e, dict) and e.get("source") == step_id]
+            for oe in outgoing_edges:
+                branch = oe.get("branch") or oe.get("source_handle")
+                if not branch:
+                    continue
+                branch = str(branch)
+                if branch in existing_case_ids:
+                    continue
+                node["data"]["cases"].append({
+                    "case_id": branch,
+                    "id": branch,
+                    "logical_operator": "or",
+                    "conditions": [
+                        {
+                            "id": _new_id("cond"),
+                            "varType": "string",
+                            "comparison_operator": "contains",
+                            "value": f"ROUTE={branch}",
+                            "variable_selector": [previous_step_id, "text"]
+                        }
+                    ]
+                })
+
            
 
 
         elif step_type == "template":
             node = copy.deepcopy(template_seed)
             node["id"] = step_id
-            node["position"] = {"x": x_base + idx * x_gap, "y": node_y}
-            node["positionAbsolute"] = {"x": x_base + idx * x_gap, "y": node_y}
+            node["position"] = {"x": node_x, "y": node_y}
+            node["positionAbsolute"] = {"x": node_x, "y": node_y}
 
             node["data"]["title"] = step_title
 
@@ -3756,17 +4134,7 @@ def compile_workflow_spec_to_dify_yaml(spec: dict) -> str:
             if not previous_step_id:
                 previous_step_id = _pick_default_target_id(spec) or "llm_generate"
             previous_step_type = step_type_map.get(previous_step_id, "llm")
-            previous_field = {
-                "template": "output",
-                "llm": "text",
-                "knowledge_retrieval": "result",
-                "code": "result",
-                "tool": "body",
-                "variable_aggregator": "output",
-                "parameter_extract": "text",
-                "iteration": "text",
-                "loop": "text",
-            }.get(previous_step_type, "text")
+            previous_field = NODE_OUTPUT_FIELD_MAP.get(previous_step_type, "text")
 
             scene = spec.get("scene", "generic")
             output_contract = spec.get("output_contract", {}) or {}
@@ -3784,8 +4152,8 @@ def compile_workflow_spec_to_dify_yaml(spec: dict) -> str:
         elif step_type == "answer":
             node = copy.deepcopy(answer_seed)
             node["id"] = step_id
-            node["position"] = {"x": x_base + idx * x_gap, "y": node_y}
-            node["positionAbsolute"] = {"x": x_base + idx * x_gap, "y": node_y}
+            node["position"] = {"x": node_x, "y": node_y}
+            node["positionAbsolute"] = {"x": node_x, "y": node_y}
 
             node["data"]["title"] = step_title
 
@@ -3808,8 +4176,8 @@ def compile_workflow_spec_to_dify_yaml(spec: dict) -> str:
         elif step_type == "knowledge_retrieval":
             node = copy.deepcopy(knowledge_node_seed)
             node["id"] = step_id
-            node["position"] = {"x": x_base + idx * x_gap, "y": node_y}
-            node["positionAbsolute"] = {"x": x_base + idx * x_gap, "y": node_y}
+            node["position"] = {"x": node_x, "y": node_y}
+            node["positionAbsolute"] = {"x": node_x, "y": node_y}
 
             node["data"]["title"] = step_title
 
@@ -3820,26 +4188,28 @@ def compile_workflow_spec_to_dify_yaml(spec: dict) -> str:
         elif step_type == "code":
             node = copy.deepcopy(code_node_seed)
             node["id"] = step_id
-            node["position"] = {"x": x_base + idx * x_gap, "y": node_y}
-            node["positionAbsolute"] = {"x": x_base + idx * x_gap, "y": node_y}
+            node["position"] = {"x": node_x, "y": node_y}
+            node["positionAbsolute"] = {"x": node_x, "y": node_y}
 
             node["data"]["title"] = step_title
-            code_cfg = _resolve_code_config(step, inputs)
+            code_cfg = _resolve_code_config(step, inputs, step_type_map)
             node["data"]["code_language"] = code_cfg["code_language"]
             node["data"]["code"] = code_cfg["code"]
             node["data"]["variables"] = code_cfg["variables"]
             node["data"]["outputs"] = code_cfg["outputs"]
             if isinstance(step.get("config"), dict) and step["config"].get("error_strategy"):
                 node["data"]["error_strategy"] = step["config"]["error_strategy"]
+            else:
+                node["data"].pop("error_strategy", None)
 
         elif step_type == "tool":
             node = copy.deepcopy(tool_node_seed)
             node["id"] = step_id
-            node["position"] = {"x": x_base + idx * x_gap, "y": node_y}
-            node["positionAbsolute"] = {"x": x_base + idx * x_gap, "y": node_y}
+            node["position"] = {"x": node_x, "y": node_y}
+            node["positionAbsolute"] = {"x": node_x, "y": node_y}
 
             node["data"]["title"] = step_title
-            tool_cfg = _resolve_tool_config(step)
+            tool_cfg = _resolve_tool_config(step, inputs, step_type_map)
             node["data"]["method"] = tool_cfg["method"]
             node["data"]["url"] = tool_cfg["url"]
             node["data"]["params"] = tool_cfg["params"]
@@ -3848,12 +4218,14 @@ def compile_workflow_spec_to_dify_yaml(spec: dict) -> str:
             node["data"]["variables"] = tool_cfg["variables"]
             if isinstance(step.get("config"), dict) and step["config"].get("error_strategy"):
                 node["data"]["error_strategy"] = step["config"]["error_strategy"]
+            else:
+                node["data"].pop("error_strategy", None)
 
         elif step_type == "variable_aggregator":
             node = copy.deepcopy(code_node_seed)
             node["id"] = step_id
-            node["position"] = {"x": x_base + idx * x_gap, "y": node_y}
-            node["positionAbsolute"] = {"x": x_base + idx * x_gap, "y": node_y}
+            node["position"] = {"x": node_x, "y": node_y}
+            node["positionAbsolute"] = {"x": node_x, "y": node_y}
 
             node["data"]["title"] = step_title
 
@@ -3865,17 +4237,7 @@ def compile_workflow_spec_to_dify_yaml(spec: dict) -> str:
                 if not src:
                     continue
                 src_type = step_type_map.get(src, "llm")
-                src_field = {
-                    "template": "output",
-                    "llm": "text",
-                    "knowledge_retrieval": "result",
-                    "code": "result",
-                    "tool": "body",
-                    "variable_aggregator": "output",
-                    "parameter_extract": "text",
-                    "iteration": "text",
-                    "loop": "text",
-                }.get(src_type, "text")
+                src_field = NODE_OUTPUT_FIELD_MAP.get(src_type, "text")
                 arg = f"arg{i + 1}"
                 arg_names.append(arg)
                 variables.append({"variable": arg, "value_selector": [src, src_field]})
@@ -3911,8 +4273,8 @@ def compile_workflow_spec_to_dify_yaml(spec: dict) -> str:
         elif step_type in {"parameter_extract", "iteration", "loop"}:
             node = copy.deepcopy(llm_seed)
             node["id"] = step_id
-            node["position"] = {"x": x_base + idx * x_gap, "y": node_y}
-            node["positionAbsolute"] = {"x": x_base + idx * x_gap, "y": node_y}
+            node["position"] = {"x": node_x, "y": node_y}
+            node["positionAbsolute"] = {"x": node_x, "y": node_y}
 
             node["data"]["title"] = step_title
             prompt_text = _build_llm_prompt(
@@ -3976,6 +4338,29 @@ def compile_workflow_spec_to_dify_yaml(spec: dict) -> str:
         compiled_edges.append(edge)
 
     # 写回 graph
+    nodes_by_id = {n.get("id"): n for n in compiled_nodes if isinstance(n, dict) and n.get("id")}
+    ifelse_case_ids: dict[str, set[str]] = {}
+    for nid, node in nodes_by_id.items():
+        data = node.get("data", {}) if isinstance(node.get("data"), dict) else {}
+        if data.get("type") != "if-else":
+            continue
+        case_ids = {
+            str(c.get("case_id") or c.get("id"))
+            for c in (data.get("cases") or [])
+            if isinstance(c, dict) and (c.get("case_id") or c.get("id"))
+        }
+        ifelse_case_ids[str(nid)] = case_ids
+
+    if ifelse_case_ids:
+        compiled_edges = [
+            e for e in compiled_edges
+            if not (
+                isinstance(e, dict)
+                and str(e.get("source") or "") in ifelse_case_ids
+                and str(e.get("sourceHandle") or "") not in ifelse_case_ids[str(e.get("source"))]
+            )
+        ]
+
     seed["workflow"]["graph"]["nodes"] = compiled_nodes
     seed["workflow"]["graph"]["edges"] = compiled_edges
 
@@ -4036,14 +4421,25 @@ def validate_compiled_dify_yaml(yaml_content: str) -> tuple[bool, str]:
             handles = {str(e.get("sourceHandle") or "source") for e in outs if isinstance(e, dict)}
             if "success-branch" not in handles or "fail-branch" not in handles:
                 return False, f"节点 {node_id} error_strategy=fail-branch 但缺少 success/fail 分支连边"
+        if data.get("type") == "if-else":
+            outs = outgoing.get(node_id, [])
+            raw_cases = data.get("cases", [])
+            case_ids = {str(c.get("case_id") or c.get("id")) for c in raw_cases if isinstance(c, dict) and (c.get("case_id") or c.get("id"))}
+            for edge in outs:
+                if not isinstance(edge, dict):
+                    continue
+                handle = str(edge.get("sourceHandle") or "")
+                if handle and handle not in case_ids:
+                    return False, f"ifelse 节点 {node_id} 存在无效分支连边 sourceHandle={handle}"
 
     return True, ""
 
 
 def _resolve_source_handle(source_step_type: str, edge_info: dict | None = None) -> str:
     if source_step_type == "ifelse":
-        branch = (edge_info or {}).get("branch")
-        return branch or "direct"
+        info = edge_info or {}
+        branch = info.get("branch") or info.get("source_handle")
+        return str(branch) if branch else "false"
     handle = (edge_info or {}).get("source_handle")
     if handle:
         return str(handle)
@@ -4165,6 +4561,13 @@ def generate():
     if description:
         spec["description"] = description
 
+    effective_requirement = None
+    if isinstance(requirement, dict) and requirement:
+        effective_requirement = requirement
+    else:
+        effective_requirement = spec.get("requirement_meta") if isinstance(spec.get("requirement_meta"), dict) else {}
+    spec, normalize_warnings = normalize_workflow_spec_v2(spec, effective_requirement)
+
     validation = validate_workflow_spec_v2(spec, MAX_NODE_LIMIT)
     ok, err = validate_workflow_spec(spec)
     if strict_validation and (not ok):
@@ -4221,6 +4624,7 @@ def generate():
         "requirement": spec.get("requirement_meta", {}),
         "planning_mode": spec.get("meta", {}).get("planning_mode", PLANNING_MODE),
         "validation_warnings": validation.get("warnings", []),
+        "normalize_warnings": normalize_warnings,
         "dify_import": dify_import,
         "dify_import_status": dify_import_status,
         "dify_console_url": DIFY_CONSOLE_URL or DIFY_API_URL,

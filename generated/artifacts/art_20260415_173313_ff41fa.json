@@ -1,0 +1,586 @@
+{
+  "timestamp": "2026-04-15T17:33:13.643230",
+  "model_name": "deepseek-chat",
+  "provider": "deepseek",
+  "prompt_version": "v2.1",
+  "schema_version": "wf-spec.v2",
+  "requirement": {
+    "app_name": "电商订单履约工作流",
+    "description": "一个面向电商订单履约的中等复杂工作流，处理从订单创建到发货的全链路流程，包含库存预占、支付、物流、异常处理与审计日志。",
+    "scene": "generic",
+    "user_goal": "自动化、可靠地处理电商订单履约流程，确保库存锁定、支付成功、物流发货的顺利执行，并在异常时自动处理与通知，同时保证全链路操作可追溯。",
+    "inputs": [
+      {
+        "name": "order_event",
+        "label": "前端订单创建事件数据",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "output_contract": {
+      "final_order_status": "string",
+      "fulfillment_result": "string (success/partial_success/failure)",
+      "payment_transaction_id": "string (optional)",
+      "logistics_order_id": "string (optional)",
+      "audit_log_id": "string",
+      "error_messages": "array (optional)"
+    },
+    "capabilities": [
+      "input_check",
+      "intent_analysis",
+      "planning",
+      "tool_call",
+      "branching",
+      "generation",
+      "formatting"
+    ],
+    "node_preferences": {
+      "target_node_count": 8,
+      "need_private_kb": false,
+      "need_code_node": false,
+      "need_tools": true,
+      "need_branching": true
+    },
+    "runtime_config": {
+      "max_execution_time": "300s",
+      "retry_on_failure": true,
+      "max_retries": 2,
+      "concurrent_branches": true,
+      "model_tier": "deepseek-chat"
+    },
+    "constraints": [
+      "必须确保库存预占与释放的原子性操作",
+      "支付回调必须验证签名与金额",
+      "所有节点操作必须生成审计日志",
+      "异常通知需同时发送钉钉与短信"
+    ]
+  },
+  "candidate_scores": [
+    {
+      "id": "cand_1",
+      "score": 90.052,
+      "ok": true,
+      "warnings": [
+        "为 parse_order 启用 fail-branch 并插入兜底链路（llm_fallback_22b7ce20->agg_09958b81->inventory_lock）",
+        "为 inventory_lock 启用 fail-branch 并插入兜底链路（llm_fallback_b49e30ea->agg_358497fa->payment_process）",
+        "为 payment_process 启用 fail-branch 并插入兜底链路（llm_fallback_fa2dbbdc->agg_9d239988->check_payment_success）",
+        "为 logistics_create 启用 fail-branch 并插入兜底链路（llm_fallback_2a24e317->agg_da2d5ef8->aggregate_success）",
+        "为 payment_failure_handler 启用 fail-branch 并插入兜底链路（llm_fallback_58d52e03->agg_c1cd2dd3->inventory_release）",
+        "节点数接近上限，跳过为 inventory_release 插入 fail-branch 兜底链路",
+        "节点数接近上限，跳过为 audit_log 插入 fail-branch 兜底链路",
+        "节点数接近上限，跳过为 format_result 插入 fail-branch 兜底链路"
+      ],
+      "stats": {
+        "total_nodes": 23,
+        "type_counts": {
+          "start": 1,
+          "code": 2,
+          "tool": 6,
+          "ifelse": 1,
+          "variable_aggregator": 7,
+          "answer": 1,
+          "llm": 5
+        },
+        "non_llm_node_ratio": 0.7826,
+        "has_path_start_to_answer": true
+      },
+      "repair_rounds": 0
+    }
+  ],
+  "selected_candidate_id": "cand_1",
+  "selected_spec": {
+    "workflow_name": "电商订单履约工作流",
+    "description": "一个面向电商订单履约的中等复杂工作流，处理从订单创建到发货的全链路流程，包含库存预占、支付、物流、异常处理与审计日志。",
+    "scene": "generic",
+    "inputs": [
+      {
+        "name": "order_event",
+        "label": "前端订单创建事件数据",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "output_contract": {
+      "final_order_status": "string",
+      "fulfillment_result": "string (success/partial_success/failure)",
+      "payment_transaction_id": "string (optional)",
+      "logistics_order_id": "string (optional)",
+      "audit_log_id": "string",
+      "error_messages": "array (optional)"
+    },
+    "steps": [
+      {
+        "id": "start_1",
+        "type": "start",
+        "config": {
+          "input_mapping": {
+            "order_event": "{{inputs.order_event}}"
+          }
+        }
+      },
+      {
+        "id": "parse_order",
+        "type": "code",
+        "config": {
+          "language": "python",
+          "script": "import json\norder_data = json.loads(order_event)\nreturn {\n    'order_id': order_data.get('order_id'),\n    'user_id': order_data.get('user_id'),\n    'items': order_data.get('items', []),\n    'total_amount': order_data.get('total_amount'),\n    'shipping_address': order_data.get('shipping_address')\n}",
+          "example_key": "parse_json",
+          "variables": {
+            "order_event": "{{steps.start_1.output.order_event}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "inventory_lock",
+        "type": "tool",
+        "config": {
+          "method": "post",
+          "url": "http://example.com/api/inventory/lock",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "order_id": "{{steps.parse_order.output.order_id}}",
+            "items": "{{steps.parse_order.output.items}}"
+          },
+          "variables": {
+            "order_id": "{{steps.parse_order.output.order_id}}",
+            "items": "{{steps.parse_order.output.items}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "payment_process",
+        "type": "tool",
+        "config": {
+          "method": "post",
+          "url": "http://example.com/api/payment/charge",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "order_id": "{{steps.parse_order.output.order_id}}",
+            "amount": "{{steps.parse_order.output.total_amount}}",
+            "user_id": "{{steps.parse_order.output.user_id}}"
+          },
+          "variables": {
+            "order_id": "{{steps.parse_order.output.order_id}}",
+            "amount": "{{steps.parse_order.output.total_amount}}",
+            "user_id": "{{steps.parse_order.output.user_id}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "logistics_create",
+        "type": "tool",
+        "config": {
+          "method": "post",
+          "url": "http://example.com/api/logistics/create",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "order_id": "{{steps.parse_order.output.order_id}}",
+            "address": "{{steps.parse_order.output.shipping_address}}",
+            "items": "{{steps.parse_order.output.items}}"
+          },
+          "variables": {
+            "order_id": "{{steps.parse_order.output.order_id}}",
+            "address": "{{steps.parse_order.output.shipping_address}}",
+            "items": "{{steps.parse_order.output.items}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "check_payment_success",
+        "type": "ifelse",
+        "config": {
+          "condition": "{{steps.payment_process.output.status}} == 'success'",
+          "cases": [
+            {
+              "id": "success",
+              "condition": "{{steps.payment_process.output.status}} == 'success'"
+            },
+            {
+              "id": "failure",
+              "condition": "{{steps.payment_process.output.status}} != 'success'"
+            }
+          ]
+        }
+      },
+      {
+        "id": "payment_failure_handler",
+        "type": "tool",
+        "config": {
+          "method": "post",
+          "url": "http://example.com/api/notification/send",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "type": "payment_failure",
+            "order_id": "{{steps.parse_order.output.order_id}}",
+            "user_id": "{{steps.parse_order.output.user_id}}",
+            "amount": "{{steps.parse_order.output.total_amount}}",
+            "channels": [
+              "dingtalk",
+              "sms"
+            ]
+          },
+          "variables": {
+            "order_id": "{{steps.parse_order.output.order_id}}",
+            "user_id": "{{steps.parse_order.output.user_id}}",
+            "amount": "{{steps.parse_order.output.total_amount}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "inventory_release",
+        "type": "tool",
+        "config": {
+          "method": "post",
+          "url": "http://example.com/api/inventory/release",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "order_id": "{{steps.parse_order.output.order_id}}",
+            "reason": "payment_failed"
+          },
+          "variables": {
+            "order_id": "{{steps.parse_order.output.order_id}}"
+          }
+        }
+      },
+      {
+        "id": "aggregate_success",
+        "type": "variable_aggregator",
+        "config": {
+          "variables": {
+            "order_id": "{{steps.parse_order.output.order_id}}",
+            "payment_tx_id": "{{steps.payment_process.output.transaction_id}}",
+            "logistics_id": "{{steps.logistics_create.output.logistics_order_id}}",
+            "inventory_status": "{{steps.inventory_lock.output.status}}"
+          }
+        }
+      },
+      {
+        "id": "aggregate_failure",
+        "type": "variable_aggregator",
+        "config": {
+          "variables": {
+            "order_id": "{{steps.parse_order.output.order_id}}",
+            "error_reason": "Payment failed",
+            "inventory_released": true
+          }
+        }
+      },
+      {
+        "id": "audit_log",
+        "type": "tool",
+        "config": {
+          "method": "post",
+          "url": "http://example.com/api/audit/log",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "order_id": "{{steps.parse_order.output.order_id}}",
+            "action": "order_fulfillment",
+            "status": "{{steps.aggregate_success.output.payment_tx_id ? 'success' : 'failure'}}",
+            "details": "{{steps.aggregate_success.output || steps.aggregate_failure.output}}"
+          },
+          "variables": {
+            "order_id": "{{steps.parse_order.output.order_id}}"
+          }
+        }
+      },
+      {
+        "id": "format_result",
+        "type": "code",
+        "config": {
+          "language": "python",
+          "script": "audit_output = audit_log_output\nif 'payment_tx_id' in aggregate_success_output:\n    return {\n        'final_order_status': 'fulfilled',\n        'fulfillment_result': 'success',\n        'payment_transaction_id': aggregate_success_output.get('payment_tx_id'),\n        'logistics_order_id': aggregate_success_output.get('logistics_id'),\n        'audit_log_id': audit_output.get('log_id'),\n        'error_messages': []\n    }\nelse:\n    return {\n        'final_order_status': 'cancelled',\n        'fulfillment_result': 'failure',\n        'payment_transaction_id': None,\n        'logistics_order_id': None,\n        'audit_log_id': audit_output.get('log_id'),\n        'error_messages': ['Payment processing failed']\n    }",
+          "example_key": "format_markdown",
+          "variables": {
+            "aggregate_success_output": "{{steps.aggregate_success.output}}",
+            "aggregate_failure_output": "{{steps.aggregate_failure.output}}",
+            "audit_log_output": "{{steps.audit_log.output}}"
+          }
+        }
+      },
+      {
+        "id": "answer_1",
+        "type": "answer",
+        "config": {
+          "answer": "{{steps.format_result.output}}"
+        }
+      },
+      {
+        "id": "llm_fallback_22b7ce20",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_09958b81",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "llm_fallback_b49e30ea",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_358497fa",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "llm_fallback_fa2dbbdc",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_9d239988",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "llm_fallback_2a24e317",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_da2d5ef8",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "llm_fallback_58d52e03",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_c1cd2dd3",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      }
+    ],
+    "edges": [
+      {
+        "source": "agg_09958b81",
+        "target": "inventory_lock"
+      },
+      {
+        "source": "agg_358497fa",
+        "target": "payment_process"
+      },
+      {
+        "source": "agg_9d239988",
+        "target": "check_payment_success"
+      },
+      {
+        "source": "agg_c1cd2dd3",
+        "target": "inventory_release"
+      },
+      {
+        "source": "agg_da2d5ef8",
+        "target": "aggregate_success"
+      },
+      {
+        "source": "aggregate_failure",
+        "target": "audit_log"
+      },
+      {
+        "source": "aggregate_success",
+        "target": "audit_log"
+      },
+      {
+        "source": "audit_log",
+        "target": "format_result"
+      },
+      {
+        "source": "check_payment_success",
+        "target": "logistics_create",
+        "branch": "success"
+      },
+      {
+        "source": "check_payment_success",
+        "target": "payment_failure_handler",
+        "branch": "failure"
+      },
+      {
+        "source": "format_result",
+        "target": "answer_1"
+      },
+      {
+        "source": "inventory_lock",
+        "target": "agg_358497fa",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "inventory_lock",
+        "target": "aggregate_failure"
+      },
+      {
+        "source": "inventory_lock",
+        "target": "llm_fallback_b49e30ea",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "inventory_release",
+        "target": "aggregate_failure"
+      },
+      {
+        "source": "llm_fallback_22b7ce20",
+        "target": "agg_09958b81"
+      },
+      {
+        "source": "llm_fallback_2a24e317",
+        "target": "agg_da2d5ef8"
+      },
+      {
+        "source": "llm_fallback_58d52e03",
+        "target": "agg_c1cd2dd3"
+      },
+      {
+        "source": "llm_fallback_b49e30ea",
+        "target": "agg_358497fa"
+      },
+      {
+        "source": "llm_fallback_fa2dbbdc",
+        "target": "agg_9d239988"
+      },
+      {
+        "source": "logistics_create",
+        "target": "agg_da2d5ef8",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "logistics_create",
+        "target": "aggregate_failure"
+      },
+      {
+        "source": "logistics_create",
+        "target": "llm_fallback_2a24e317",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "parse_order",
+        "target": "agg_09958b81",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "parse_order",
+        "target": "llm_fallback_22b7ce20",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "payment_failure_handler",
+        "target": "agg_c1cd2dd3",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "payment_failure_handler",
+        "target": "llm_fallback_58d52e03",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "payment_process",
+        "target": "agg_9d239988",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "payment_process",
+        "target": "aggregate_failure"
+      },
+      {
+        "source": "payment_process",
+        "target": "llm_fallback_fa2dbbdc",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "start_1",
+        "target": "parse_order"
+      }
+    ],
+    "meta": {
+      "planning_mode": "llm_v2",
+      "model": "deepseek-chat",
+      "provider": "deepseek",
+      "prompt_version": "v2.1",
+      "schema_version": "wf-spec.v2",
+      "score": 90.052,
+      "selected_candidate_id": "cand_1",
+      "complexity_level": "complex",
+      "candidate_count": 3
+    },
+    "requirement_meta": {
+      "app_name": "电商订单履约工作流",
+      "description": "一个面向电商订单履约的中等复杂工作流，处理从订单创建到发货的全链路流程，包含库存预占、支付、物流、异常处理与审计日志。",
+      "scene": "generic",
+      "user_goal": "自动化、可靠地处理电商订单履约流程，确保库存锁定、支付成功、物流发货的顺利执行，并在异常时自动处理与通知，同时保证全链路操作可追溯。",
+      "inputs": [
+        {
+          "name": "order_event",
+          "label": "前端订单创建事件数据",
+          "type": "text",
+          "required": true
+        }
+      ],
+      "output_contract": {
+        "final_order_status": "string",
+        "fulfillment_result": "string (success/partial_success/failure)",
+        "payment_transaction_id": "string (optional)",
+        "logistics_order_id": "string (optional)",
+        "audit_log_id": "string",
+        "error_messages": "array (optional)"
+      },
+      "capabilities": [
+        "input_check",
+        "intent_analysis",
+        "planning",
+        "tool_call",
+        "branching",
+        "generation",
+        "formatting"
+      ],
+      "node_preferences": {
+        "target_node_count": 8,
+        "need_private_kb": false,
+        "need_code_node": false,
+        "need_tools": true,
+        "need_branching": true
+      },
+      "runtime_config": {
+        "max_execution_time": "300s",
+        "retry_on_failure": true,
+        "max_retries": 2,
+        "concurrent_branches": true,
+        "model_tier": "deepseek-chat"
+      },
+      "constraints": [
+        "必须确保库存预占与释放的原子性操作",
+        "支付回调必须验证签名与金额",
+        "所有节点操作必须生成审计日志",
+        "异常通知需同时发送钉钉与短信"
+      ]
+    }
+  }
+}

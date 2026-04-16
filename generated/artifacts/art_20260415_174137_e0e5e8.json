@@ -1,0 +1,448 @@
+{
+  "timestamp": "2026-04-15T17:41:37.779696",
+  "model_name": "deepseek-chat",
+  "provider": "deepseek",
+  "prompt_version": "v2.1",
+  "schema_version": "wf-spec.v2",
+  "requirement": {
+    "app_name": "自动化数据处理与监控工作流",
+    "description": "一个中等复杂度的自动化数据处理工作流，用于每日定时处理FTP服务器上的CSV日志文件。流程包括数据读取、清洗转换、地理位置信息补全、数据入库、业务规则判断、风险告警、报表生成以及执行结果汇总与回传。系统支持异常捕获与断点续传。",
+    "scene": "generic",
+    "user_goal": "自动化完成每日日志数据的ETL处理、风险监控与结果报告，确保数据处理的可靠性与可观测性。",
+    "inputs": [
+      {
+        "name": "ftp_config",
+        "label": "FTP服务器配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "api_key",
+        "label": "地理位置API密钥",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "db_connection",
+        "label": "云数据库连接字符串",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "alert_email",
+        "label": "告警通知邮箱",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "monitoring_platform_url",
+        "label": "监控平台回传地址",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "output_contract": {
+      "summary_report": "string",
+      "execution_status": "string",
+      "processed_records_count": "number",
+      "high_risk_operations_detected": "boolean",
+      "alert_sent": "boolean",
+      "report_generated": "boolean",
+      "final_database_write_status": "string",
+      "error_logs": "array"
+    },
+    "capabilities": [
+      "input_check",
+      "planning",
+      "tool_call",
+      "branching",
+      "generation",
+      "formatting"
+    ],
+    "node_preferences": {
+      "target_node_count": 8,
+      "need_private_kb": false,
+      "need_code_node": true,
+      "need_tools": true,
+      "need_branching": true
+    },
+    "runtime_config": {
+      "trigger_type": "scheduled",
+      "schedule": "0 2 * * *",
+      "error_handling": "catch_and_log_with_retry",
+      "checkpoint_enabled": true,
+      "model_tier": "deepseek-chat"
+    },
+    "constraints": []
+  },
+  "candidate_scores": [
+    {
+      "id": "cand_1",
+      "score": 90.946,
+      "ok": true,
+      "warnings": [
+        "工具节点 ftp_file_download url 已重写为白名单地址",
+        "补充 answer 节点",
+        "原始 edges 为空，已按节点顺序自动连边",
+        "为 input_validation 启用 fail-branch 并插入兜底链路（llm_fallback_f052f623->agg_762fd2ab->ftp_file_download）",
+        "为 ftp_file_download 启用 fail-branch 并插入兜底链路（llm_fallback_47c38416->agg_d18ec13b->data_cleaning）",
+        "为 data_cleaning 启用 fail-branch 并插入兜底链路（llm_fallback_48ac8e01->agg_7337067b->answer）"
+      ],
+      "stats": {
+        "total_nodes": 11,
+        "type_counts": {
+          "start": 1,
+          "code": 2,
+          "tool": 1,
+          "answer": 1,
+          "llm": 3,
+          "variable_aggregator": 3
+        },
+        "non_llm_node_ratio": 0.7273,
+        "has_path_start_to_answer": true
+      },
+      "repair_rounds": 0
+    }
+  ],
+  "selected_candidate_id": "cand_1",
+  "selected_spec": {
+    "workflow_name": "自动化数据处理与监控工作流",
+    "description": "每日定时处理FTP服务器上的CSV日志文件，完成ETL处理、风险监控与结果报告，支持异常捕获与断点续传。",
+    "scene": "generic",
+    "inputs": [
+      {
+        "name": "ftp_config",
+        "label": "FTP服务器配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "api_key",
+        "label": "地理位置API密钥",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "db_connection",
+        "label": "云数据库连接字符串",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "alert_email",
+        "label": "告警通知邮箱",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "monitoring_platform_url",
+        "label": "监控平台回传地址",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "output_contract": {
+      "summary_report": "string",
+      "execution_status": "string",
+      "processed_records_count": "number",
+      "high_risk_operations_detected": "boolean",
+      "alert_sent": "boolean",
+      "report_generated": "boolean",
+      "final_database_write_status": "string",
+      "error_logs": "array"
+    },
+    "steps": [
+      {
+        "id": "start",
+        "type": "start",
+        "config": {
+          "name": "开始",
+          "description": "工作流启动节点"
+        }
+      },
+      {
+        "id": "input_validation",
+        "type": "code",
+        "config": {
+          "name": "输入参数校验",
+          "description": "校验所有输入参数的格式与完整性",
+          "language": "python",
+          "script": "def validate_inputs(ftp_config, api_key, db_connection, alert_email, monitoring_platform_url):\n    errors = []\n    if not ftp_config or 'host' not in ftp_config:\n        errors.append('FTP配置缺少host信息')\n    if not api_key or len(api_key) < 10:\n        errors.append('API密钥格式错误')\n    if not db_connection or 'postgresql://' not in db_connection:\n        errors.append('数据库连接字符串格式错误')\n    if not alert_email or '@' not in alert_email:\n        errors.append('告警邮箱格式错误')\n    if not monitoring_platform_url or 'http' not in monitoring_platform_url:\n        errors.append('监控平台地址格式错误')\n    \n    return {\n        'valid': len(errors) == 0",
+          "errors": "errors",
+          "validated_inputs": {
+            "ftp_config": "ftp_config",
+            "api_key": "api_key",
+            "db_connection": "db_connection",
+            "alert_email": "alert_email",
+            "monitoring_platform_url": "monitoring_platform_url\n        }\n    }",
+            "variables": {
+              "ftp_config": "{{inputs.ftp_config}}",
+              "api_key": "{{inputs.api_key}}",
+              "db_connection": "{{inputs.db_connection}}",
+              "alert_email": "{{inputs.alert_email}}",
+              "monitoring_platform_url": "{{inputs.monitoring_platform_url}}"
+            },
+            "error_strategy": "fail-branch"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "ftp_file_download",
+        "type": "tool",
+        "config": {
+          "name": "FTP文件下载",
+          "description": "从FTP服务器下载最新的CSV日志文件",
+          "method": "get",
+          "url": "https://httpbin.org/get",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "action": "download_csv",
+            "ftp_config": "{{steps.input_validation.config.variables.validated_inputs.ftp_config}}",
+            "file_pattern": "logs_*.csv"
+          },
+          "variables": {
+            "ftp_config": "{{steps.input_validation.config.variables.validated_inputs.ftp_config}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "data_cleaning",
+        "type": "code",
+        "config": {
+          "name": "数据清洗转换",
+          "description": "清洗CSV数据，处理缺失值和格式转换",
+          "language": "python",
+          "script": "def clean_csv_data(csv_content):\n    import pandas as pd\n    import io\n    import json\n    \n    try:\n        # 读取CSV数据\n        df = pd.read_csv(io.StringIO(csv_content))\n        \n        # 记录原始行数\n        original_count = len(df)\n        \n        # 清洗步骤\n        # 1. 去除重复行\n        df = df.drop_duplicates()\n        \n        # 2. 处理缺失值\n        numeric_cols = df.select_dtypes(include=['number']).columns\n        df[numeric_cols] = df[numeric_cols].fillna(0)\n        \n        text_cols = df.select_dtypes(include=['object']).columns\n        df[text_cols] = df[text_cols].fillna('')\n        \n        # 3. 标准化时间格式\n        if 'timestamp' in df.columns:\n            df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')\n        \n        # 4. 过滤无效数据\n        df = df[df['user_id'].notna() & (df['user_id'] != '')]\n        \n        cleaned_count = len(df)\n        \n        return {\n            'success': True",
+          "cleaned_data": [],
+          "original_records": "original_count",
+          "cleaned_records": "cleaned_count",
+          "removed_records": "original_count - cleaned_count",
+          "columns": "list(df.columns)\n        }\n    except Exception as e:\n        return {\n            'success': False",
+          "error": "str(e)",
+          "error_strategy": "fail-branch"
+        },
+        "example_key": "clean_text",
+        "variables": {
+          "csv_content": "{{steps.ftp_file_download.config.variables.response_body}}"
+        },
+        "error_strategy": "fail-branch"
+      },
+      {
+        "id": "answer",
+        "type": "answer",
+        "title": "直接回复"
+      },
+      {
+        "id": "llm_fallback_f052f623",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_762fd2ab",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "llm_fallback_47c38416",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_d18ec13b",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "llm_fallback_48ac8e01",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_7337067b",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      }
+    ],
+    "id": "geo_enrichment",
+    "type": "tool",
+    "config": {
+      "name": "地理位置信息补全",
+      "description": "调用地理位置API补全IP地址的地理信息",
+      "method": "POST",
+      "url": "httpbin.org/post",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {{steps.input_validation.config.variables.validated_inputs.api_key}}"
+      },
+      "body": {
+        "action": "geo_enrichment",
+        "records": "{{steps.data_cleaning.config.variables.cleaned_data}}",
+        "api_key": "{{steps.input_validation.config.variables.validated_inputs.api_key}}",
+        "fields": [
+          "ip_address",
+          "country",
+          "city",
+          "latitude",
+          "longitude"
+        ]
+      },
+      "variables": {
+        "api_key": "{{steps.input_validation.config.variables.validated_inputs.api_key}}",
+        "cleaned_data": "{{steps.data_cleaning.config.variables.cleaned_data}}"
+      },
+      "error_strategy": "fail-branch"
+    },
+    "edges": [
+      {
+        "source": "agg_7337067b",
+        "target": "answer"
+      },
+      {
+        "source": "agg_762fd2ab",
+        "target": "ftp_file_download"
+      },
+      {
+        "source": "agg_d18ec13b",
+        "target": "data_cleaning"
+      },
+      {
+        "source": "data_cleaning",
+        "target": "agg_7337067b",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "data_cleaning",
+        "target": "llm_fallback_48ac8e01",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "ftp_file_download",
+        "target": "agg_d18ec13b",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "ftp_file_download",
+        "target": "llm_fallback_47c38416",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "input_validation",
+        "target": "agg_762fd2ab",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "input_validation",
+        "target": "llm_fallback_f052f623",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "llm_fallback_47c38416",
+        "target": "agg_d18ec13b"
+      },
+      {
+        "source": "llm_fallback_48ac8e01",
+        "target": "agg_7337067b"
+      },
+      {
+        "source": "llm_fallback_f052f623",
+        "target": "agg_762fd2ab"
+      },
+      {
+        "source": "start",
+        "target": "input_validation"
+      }
+    ],
+    "meta": {
+      "planning_mode": "llm_v2",
+      "model": "deepseek-chat",
+      "provider": "deepseek",
+      "prompt_version": "v2.1",
+      "schema_version": "wf-spec.v2",
+      "score": 90.946,
+      "selected_candidate_id": "cand_1",
+      "complexity_level": "complex",
+      "candidate_count": 3
+    },
+    "requirement_meta": {
+      "app_name": "自动化数据处理与监控工作流",
+      "description": "一个中等复杂度的自动化数据处理工作流，用于每日定时处理FTP服务器上的CSV日志文件。流程包括数据读取、清洗转换、地理位置信息补全、数据入库、业务规则判断、风险告警、报表生成以及执行结果汇总与回传。系统支持异常捕获与断点续传。",
+      "scene": "generic",
+      "user_goal": "自动化完成每日日志数据的ETL处理、风险监控与结果报告，确保数据处理的可靠性与可观测性。",
+      "inputs": [
+        {
+          "name": "ftp_config",
+          "label": "FTP服务器配置",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "api_key",
+          "label": "地理位置API密钥",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "db_connection",
+          "label": "云数据库连接字符串",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "alert_email",
+          "label": "告警通知邮箱",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "monitoring_platform_url",
+          "label": "监控平台回传地址",
+          "type": "text",
+          "required": true
+        }
+      ],
+      "output_contract": {
+        "summary_report": "string",
+        "execution_status": "string",
+        "processed_records_count": "number",
+        "high_risk_operations_detected": "boolean",
+        "alert_sent": "boolean",
+        "report_generated": "boolean",
+        "final_database_write_status": "string",
+        "error_logs": "array"
+      },
+      "capabilities": [
+        "input_check",
+        "planning",
+        "tool_call",
+        "branching",
+        "generation",
+        "formatting"
+      ],
+      "node_preferences": {
+        "target_node_count": 8,
+        "need_private_kb": false,
+        "need_code_node": true,
+        "need_tools": true,
+        "need_branching": true
+      },
+      "runtime_config": {
+        "trigger_type": "scheduled",
+        "schedule": "0 2 * * *",
+        "error_handling": "catch_and_log_with_retry",
+        "checkpoint_enabled": true,
+        "model_tier": "deepseek-chat"
+      },
+      "constraints": []
+    }
+  }
+}

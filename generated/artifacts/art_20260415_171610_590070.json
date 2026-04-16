@@ -1,0 +1,567 @@
+{
+  "timestamp": "2026-04-15T17:16:10.893524",
+  "model_name": "deepseek-chat",
+  "provider": "deepseek",
+  "prompt_version": "v2.1",
+  "schema_version": "wf-spec.v2",
+  "requirement": {
+    "app_name": "CSV日志定时处理系统",
+    "description": "每日定时处理FTP上的CSV日志文件，包括数据清洗、IP地理位置补全、风险判断和报表生成",
+    "scene": "generic",
+    "user_goal": "自动化处理FTP服务器上的CSV日志文件，进行数据清洗、增强、风险分析并生成汇总报告",
+    "inputs": [
+      {
+        "name": "ftp_config",
+        "label": "FTP配置信息",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "db_connection",
+        "label": "数据库连接配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "api_key",
+        "label": "API密钥",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "monitoring_platform_url",
+        "label": "监控平台URL",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "alert_recipients",
+        "label": "告警接收人",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "output_contract": {
+      "run_id": "string",
+      "processed_files": "array",
+      "inserted_rows": "number",
+      "anomalies": "array",
+      "alerts": "array",
+      "report": "string",
+      "status": "string"
+    },
+    "capabilities": [
+      "input_check",
+      "planning",
+      "code_execution",
+      "tool_call",
+      "branching",
+      "generation",
+      "formatting"
+    ],
+    "node_preferences": {
+      "target_node_count": 12,
+      "need_private_kb": false,
+      "need_code_node": true,
+      "need_tools": false,
+      "need_branching": true
+    },
+    "runtime_config": {
+      "max_execution_time": 300,
+      "retry_count": 2,
+      "timeout": 60,
+      "model_tier": "deepseek-chat"
+    },
+    "constraints": []
+  },
+  "candidate_scores": [
+    {
+      "id": "cand_1",
+      "score": 88.328,
+      "ok": true,
+      "warnings": [
+        "为 input_check 启用 fail-branch 并插入兜底链路（llm_fallback_fdbec201->agg_62350957->plan_processing）",
+        "为 download_csv 启用 fail-branch 并插入兜底链路（llm_fallback_fb5db942->agg_4a73b8c2->download_fallback）",
+        "为 clean_data 启用 fail-branch 并插入兜底链路（llm_fallback_00c92c66->agg_ffb9adce->check_anomalies）",
+        "为 enrich_ip 启用 fail-branch 并插入兜底链路（llm_fallback_917db0e5->agg_a2845b38->risk_analysis）"
+      ],
+      "stats": {
+        "total_nodes": 22,
+        "type_counts": {
+          "start": 1,
+          "code": 4,
+          "llm": 8,
+          "variable_aggregator": 6,
+          "ifelse": 1,
+          "template": 1,
+          "answer": 1
+        },
+        "non_llm_node_ratio": 0.6364,
+        "has_path_start_to_answer": true
+      },
+      "repair_rounds": 0
+    }
+  ],
+  "selected_candidate_id": "cand_1",
+  "selected_spec": {
+    "workflow_name": "CSV日志定时处理系统",
+    "description": "每日定时处理FTP上的CSV日志文件，包括数据清洗、IP地理位置补全、风险判断和报表生成",
+    "scene": "generic",
+    "inputs": [
+      {
+        "name": "ftp_config",
+        "label": "FTP配置信息",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "db_connection",
+        "label": "数据库连接配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "api_key",
+        "label": "API密钥",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "monitoring_platform_url",
+        "label": "监控平台URL",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "alert_recipients",
+        "label": "告警接收人",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "output_contract": {
+      "run_id": "string",
+      "processed_files": "array",
+      "inserted_rows": "number",
+      "anomalies": "array",
+      "alerts": "array",
+      "report": "string",
+      "status": "string"
+    },
+    "steps": [
+      {
+        "id": "start",
+        "type": "start",
+        "config": {}
+      },
+      {
+        "id": "input_check",
+        "type": "code",
+        "config": {
+          "language": "python",
+          "script": "import json\ninputs = json.loads(inputs)\nrequired = ['ftp_config', 'db_connection', 'api_key', 'monitoring_platform_url']\nmissing = [field for field in required if field not in inputs or not inputs[field]]\nif missing:\n    raise ValueError(f'缺少必要输入字段: {missing}')\noutput = {'status': 'inputs_valid', 'timestamp': '2024-01-01T00:00:00Z'}\nreturn output",
+          "example_key": "parse_json",
+          "variables": {
+            "inputs": "{{inputs}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "plan_processing",
+        "type": "llm",
+        "config": {
+          "model": "deepseek-chat",
+          "prompt": "基于FTP配置和当前时间，规划今天的日志处理任务。FTP配置：{{ftp_config}}。当前时间：{{timestamp}}。请输出处理计划，包括：1) 要处理的文件列表 2) 处理优先级 3) 预计处理时间",
+          "variables": {
+            "ftp_config": "{{inputs.ftp_config}}",
+            "timestamp": "{{input_check.output.timestamp}}"
+          }
+        }
+      },
+      {
+        "id": "download_csv",
+        "type": "code",
+        "config": {
+          "language": "python",
+          "script": "import json\nimport ftplib\nimport tempfile\nimport os\nconfig = json.loads(config)\nplan = json.loads(plan)\nftp = ftplib.FTP(config['host'])\nftp.login(config['user'], config['password'])\nfiles = plan.get('files', [])\ndownloaded = []\nfor file in files:\n    local_path = os.path.join(tempfile.gettempdir(), file)\n    with open(local_path, 'wb') as f:\n        ftp.retrbinary(f'RETR {file}', f.write)\n    downloaded.append(local_path)\nftp.quit()\nreturn {'downloaded_files': downloaded, 'count': len(downloaded)}",
+          "example_key": "parse_json",
+          "variables": {
+            "config": "{{inputs.ftp_config}}",
+            "plan": "{{plan_processing.output}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "download_fallback",
+        "type": "llm",
+        "config": {
+          "model": "deepseek-chat",
+          "prompt": "FTP文件下载失败。错误信息：{{error}}。请生成一个备用处理方案，使用本地缓存文件或生成模拟数据。",
+          "variables": {
+            "error": "{{download_csv.error}}"
+          }
+        }
+      },
+      {
+        "id": "aggregate_download",
+        "type": "variable_aggregator",
+        "config": {
+          "variables": {
+            "files_result": "{{download_csv.output}}",
+            "fallback_result": "{{download_fallback.output}}"
+          }
+        }
+      },
+      {
+        "id": "clean_data",
+        "type": "code",
+        "config": {
+          "language": "python",
+          "script": "import pandas as pd\nimport json\nresult = json.loads(result)\nfiles = result.get('files_result', {}).get('downloaded_files', []) or result.get('fallback_result', {}).get('files', [])\ncleaned_data = []\nfor file in files:\n    df = pd.read_csv(file)\n    df = df.dropna()\n    df = df.drop_duplicates()\n    df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')\n    df = df.dropna(subset=['timestamp'])\n    cleaned_data.append(df.to_dict('records'))\nreturn {'cleaned_records': cleaned_data, 'total_rows': sum(len(d) for d in cleaned_data)}",
+          "example_key": "clean_text",
+          "variables": {
+            "result": "{{aggregate_download.output}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "check_anomalies",
+        "type": "ifelse",
+        "config": {
+          "condition": "{{clean_data.output.total_rows}} > 10000",
+          "cases": [
+            {
+              "id": "high_volume",
+              "condition": "true"
+            },
+            {
+              "id": "normal_volume",
+              "condition": "false"
+            }
+          ]
+        }
+      },
+      {
+        "id": "handle_high_volume",
+        "type": "llm",
+        "config": {
+          "model": "deepseek-chat",
+          "prompt": "检测到高数据量（{{total_rows}}行），建议分批处理。请生成分批处理策略，每批不超过5000行。",
+          "variables": {
+            "total_rows": "{{clean_data.output.total_rows}}"
+          }
+        }
+      },
+      {
+        "id": "aggregate_volume",
+        "type": "variable_aggregator",
+        "config": {
+          "variables": {
+            "cleaned_data": "{{clean_data.output}}",
+            "volume_strategy": "{{handle_high_volume.output}}"
+          }
+        }
+      },
+      {
+        "id": "enrich_ip",
+        "type": "code",
+        "config": {
+          "language": "python",
+          "script": "import json\nimport requests\ndata = json.loads(data)\napi_key = json.loads(api_key)\nrecords = data['cleaned_data']['cleaned_records']\nenriched = []\nfor batch in records:\n    for record in batch:\n        if 'ip' in record:\n            try:\n                response = requests.get(f'http://ip-api.com/json/{record[\"ip\"]}')\n                geo = response.json()\n                record['country'] = geo.get('country', 'Unknown')\n                record['city'] = geo.get('city', 'Unknown')\n            except:\n                record['country'] = 'Unknown'\n                record['city'] = 'Unknown'\n        enriched.append(record)\nreturn {'enriched_records': enriched, 'count': len(enriched)}",
+          "example_key": "parse_json",
+          "variables": {
+            "data": "{{aggregate_volume.output}}",
+            "api_key": "{{inputs.api_key}}"
+          },
+          "error_strategy": "fail-branch"
+        }
+      },
+      {
+        "id": "risk_analysis",
+        "type": "llm",
+        "config": {
+          "model": "deepseek-chat",
+          "prompt": "分析以下日志记录中的风险模式。记录数量：{{count}}。请识别：1) 可疑IP地址 2) 异常访问频率 3) 潜在安全威胁。记录示例：{{sample_records}}",
+          "variables": {
+            "count": "{{enrich_ip.output.count}}",
+            "sample_records": "{{enrich_ip.output.enriched_records[:3]}}"
+          }
+        }
+      },
+      {
+        "id": "generate_report",
+        "type": "template",
+        "config": {
+          "template": "# 日志处理报告\n\n**运行ID**: {{run_id}}\n**处理时间**: {{timestamp}}\n**处理文件数**: {{file_count}}\n**处理记录数**: {{record_count}}\n**风险分析结果**:\n{{risk_analysis}}\n\n**状态**: {{status}}",
+          "variables": {
+            "run_id": "{{input_check.output.timestamp}}",
+            "timestamp": "{{input_check.output.timestamp}}",
+            "file_count": "{{aggregate_download.output.files_result.count}}",
+            "record_count": "{{enrich_ip.output.count}}",
+            "risk_analysis": "{{risk_analysis.output}}",
+            "status": "已完成"
+          }
+        }
+      },
+      {
+        "id": "answer",
+        "type": "answer",
+        "config": {
+          "answer": "{{generate_report.output}}"
+        }
+      },
+      {
+        "id": "llm_fallback_fdbec201",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_62350957",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "llm_fallback_fb5db942",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_4a73b8c2",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "llm_fallback_00c92c66",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_ffb9adce",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      },
+      {
+        "id": "llm_fallback_917db0e5",
+        "type": "llm",
+        "title": "失败兜底",
+        "prompt": "上游执行失败。请根据用户输入与已知上下文，给出可交付的替代结果，并说明关键假设。"
+      },
+      {
+        "id": "agg_a2845b38",
+        "type": "variable_aggregator",
+        "title": "结果汇合",
+        "config": {}
+      }
+    ],
+    "edges": [
+      {
+        "source": "agg_4a73b8c2",
+        "target": "download_fallback"
+      },
+      {
+        "source": "agg_62350957",
+        "target": "plan_processing"
+      },
+      {
+        "source": "agg_a2845b38",
+        "target": "risk_analysis"
+      },
+      {
+        "source": "agg_ffb9adce",
+        "target": "check_anomalies"
+      },
+      {
+        "source": "aggregate_download",
+        "target": "clean_data"
+      },
+      {
+        "source": "aggregate_volume",
+        "target": "enrich_ip"
+      },
+      {
+        "source": "check_anomalies",
+        "target": "aggregate_volume",
+        "branch": "normal_volume"
+      },
+      {
+        "source": "check_anomalies",
+        "target": "handle_high_volume",
+        "branch": "high_volume"
+      },
+      {
+        "source": "clean_data",
+        "target": "agg_ffb9adce",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "clean_data",
+        "target": "llm_fallback_00c92c66",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "download_csv",
+        "target": "agg_4a73b8c2",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "download_csv",
+        "target": "aggregate_download"
+      },
+      {
+        "source": "download_csv",
+        "target": "llm_fallback_fb5db942",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "download_fallback",
+        "target": "aggregate_download"
+      },
+      {
+        "source": "enrich_ip",
+        "target": "agg_a2845b38",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "enrich_ip",
+        "target": "llm_fallback_917db0e5",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "generate_report",
+        "target": "answer"
+      },
+      {
+        "source": "handle_high_volume",
+        "target": "aggregate_volume"
+      },
+      {
+        "source": "input_check",
+        "target": "agg_62350957",
+        "source_handle": "success-branch"
+      },
+      {
+        "source": "input_check",
+        "target": "llm_fallback_fdbec201",
+        "source_handle": "fail-branch"
+      },
+      {
+        "source": "llm_fallback_00c92c66",
+        "target": "agg_ffb9adce"
+      },
+      {
+        "source": "llm_fallback_917db0e5",
+        "target": "agg_a2845b38"
+      },
+      {
+        "source": "llm_fallback_fb5db942",
+        "target": "agg_4a73b8c2"
+      },
+      {
+        "source": "llm_fallback_fdbec201",
+        "target": "agg_62350957"
+      },
+      {
+        "source": "plan_processing",
+        "target": "download_csv"
+      },
+      {
+        "source": "risk_analysis",
+        "target": "generate_report"
+      },
+      {
+        "source": "start",
+        "target": "input_check"
+      }
+    ],
+    "meta": {
+      "planning_mode": "llm_v2",
+      "model": "deepseek-chat",
+      "provider": "deepseek",
+      "prompt_version": "v2.1",
+      "schema_version": "wf-spec.v2",
+      "score": 88.328,
+      "selected_candidate_id": "cand_1",
+      "complexity_level": "complex",
+      "candidate_count": 3
+    },
+    "requirement_meta": {
+      "app_name": "CSV日志定时处理系统",
+      "description": "每日定时处理FTP上的CSV日志文件，包括数据清洗、IP地理位置补全、风险判断和报表生成",
+      "scene": "generic",
+      "user_goal": "自动化处理FTP服务器上的CSV日志文件，进行数据清洗、增强、风险分析并生成汇总报告",
+      "inputs": [
+        {
+          "name": "ftp_config",
+          "label": "FTP配置信息",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "db_connection",
+          "label": "数据库连接配置",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "api_key",
+          "label": "API密钥",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "monitoring_platform_url",
+          "label": "监控平台URL",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "alert_recipients",
+          "label": "告警接收人",
+          "type": "text",
+          "required": false
+        }
+      ],
+      "output_contract": {
+        "run_id": "string",
+        "processed_files": "array",
+        "inserted_rows": "number",
+        "anomalies": "array",
+        "alerts": "array",
+        "report": "string",
+        "status": "string"
+      },
+      "capabilities": [
+        "input_check",
+        "planning",
+        "code_execution",
+        "tool_call",
+        "branching",
+        "generation",
+        "formatting"
+      ],
+      "node_preferences": {
+        "target_node_count": 12,
+        "need_private_kb": false,
+        "need_code_node": true,
+        "need_tools": false,
+        "need_branching": true
+      },
+      "runtime_config": {
+        "max_execution_time": 300,
+        "retry_count": 2,
+        "timeout": 60,
+        "model_tier": "deepseek-chat"
+      },
+      "constraints": []
+    }
+  }
+}

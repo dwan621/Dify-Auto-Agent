@@ -1,0 +1,750 @@
+{
+  "timestamp": "2026-04-16T09:27:32.824972",
+  "model_name": "deepseek-chat",
+  "provider": "deepseek",
+  "prompt_version": "v2.1",
+  "schema_version": "wf-spec.v2",
+  "requirement": {
+    "app_name": "多源异构数据同步与清洗工作流",
+    "description": "一个八节点中等复杂工作流，用于监听上游业务系统数据变更，并发采集MySQL和RESTful API的增量数据，经过格式化、去重、关联、路由等清洗步骤后，批量写入ClickHouse集群，并处理异常、更新元数据和上报监控指标。",
+    "scene": "generic",
+    "user_goal": "自动化、可靠地完成从多源异构数据（MySQL、RESTful API）到目标数据仓库（ClickHouse）的增量数据同步、清洗与入库，并具备完整的监控、异常处理和元数据管理能力。",
+    "inputs": [
+      {
+        "name": "upstream_change_event",
+        "label": "上游变更监听事件",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "mysql_connection_config",
+        "label": "MySQL连接与增量查询配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "api_endpoint_config",
+        "label": "RESTful API端点与认证配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "internal_schema_definition",
+        "label": "内部通用Schema定义",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "dimension_table_config",
+        "label": "维表关联配置",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "routing_rules",
+        "label": "分库分表路由规则（基于租户ID）",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "clickhouse_cluster_config",
+        "label": "目标ClickHouse集群配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "failure_threshold",
+        "label": "写入失败阈值",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "s3_dead_letter_config",
+        "label": "S3死信队列存储配置",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "output_contract": {
+      "data_sync_report": "本次数据同步的摘要报告，包含成功/失败记录数、目标表、同步延迟、吞吐量等关键指标。",
+      "dead_letter_records_location": "（如果存在）写入失败并转储至S3的死信记录位置信息。",
+      "metadata_update_confirmation": "数据血缘与同步位点信息已更新的确认。",
+      "prometheus_metrics_pushed": "推送至Prometheus的监控指标确认。"
+    },
+    "capabilities": [
+      "intent_analysis",
+      "planning",
+      "branching",
+      "tool_call",
+      "code_execution",
+      "optimization",
+      "formatting"
+    ],
+    "node_preferences": {
+      "target_node_count": 8,
+      "need_private_kb": false,
+      "need_code_node": true,
+      "need_tools": true,
+      "need_branching": true
+    },
+    "runtime_config": {
+      "execution_mode": "triggered",
+      "concurrent_nodes": [
+        "并发数据采集节点"
+      ],
+      "error_handling": "dead_letter_queue_with_retry",
+      "state_persistence": "required_for_checkpoints",
+      "model_tier": "deepseek-chat",
+      "allow_autofix_ifelse": false,
+      "allow_autowrap_fail_branch": false,
+      "max_fail_branch_nodes": 2
+    },
+    "constraints": []
+  },
+  "candidate_scores": [
+    {
+      "id": "cand_1",
+      "score": 101.762,
+      "ok": true,
+      "warnings": [
+        "工具节点 tool_fetch_mysql url 已重写为白名单地址",
+        "工具节点 tool_fetch_api url 已重写为白名单地址",
+        "工具节点 tool_write_clickhouse url 已重写为白名单地址",
+        "已移除 tool_write_clickhouse 的 fail-branch 配置以避免生成冗余兜底节点"
+      ],
+      "stats": {
+        "total_nodes": 13,
+        "type_counts": {
+          "start": 1,
+          "llm": 2,
+          "ifelse": 1,
+          "tool": 3,
+          "variable_aggregator": 2,
+          "code": 3,
+          "answer": 1
+        },
+        "non_llm_node_ratio": 0.8462,
+        "has_path_start_to_answer": true
+      },
+      "repair_rounds": 0
+    }
+  ],
+  "selected_candidate_id": "cand_1",
+  "selected_spec": {
+    "workflow_name": "多源异构数据同步与清洗工作流",
+    "description": "监听上游业务系统数据变更，并发采集MySQL和RESTful API的增量数据，经过格式化、去重、关联、路由等清洗步骤后，批量写入ClickHouse集群，并处理异常、更新元数据和上报监控指标。",
+    "scene": "generic",
+    "inputs": [
+      {
+        "name": "upstream_change_event",
+        "label": "上游变更监听事件",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "mysql_connection_config",
+        "label": "MySQL连接与增量查询配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "api_endpoint_config",
+        "label": "RESTful API端点与认证配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "internal_schema_definition",
+        "label": "内部通用Schema定义",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "dimension_table_config",
+        "label": "维表关联配置",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "routing_rules",
+        "label": "分库分表路由规则（基于租户ID）",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "clickhouse_cluster_config",
+        "label": "目标ClickHouse集群配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "failure_threshold",
+        "label": "写入失败阈值",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "s3_dead_letter_config",
+        "label": "S3死信队列存储配置",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "output_contract": {
+      "data_sync_report": "本次数据同步的摘要报告，包含成功/失败记录数、目标表、同步延迟、吞吐量等关键指标。",
+      "dead_letter_records_location": "（如果存在）写入失败并转储至S3的死信记录位置信息。",
+      "metadata_update_confirmation": "数据血缘与同步位点信息已更新的确认。",
+      "prometheus_metrics_pushed": "推送至Prometheus的监控指标确认。"
+    },
+    "steps": [
+      {
+        "id": "start",
+        "type": "start",
+        "title": "开始"
+      },
+      {
+        "id": "llm_plan",
+        "type": "llm",
+        "title": "解析变更事件与生成执行计划",
+        "config": {
+          "variables": [
+            {
+              "variable": "upstream_change_event",
+              "value_selector": [
+                "start",
+                "upstream_change_event"
+              ]
+            }
+          ],
+          "prompt": "分析上游变更事件，确定需要同步的数据源（MySQL、API或两者）和对应的查询参数。输出格式为JSON，包含字段：sources（数组，值为'mysql'或'api'）、mysql_query_params（如有）、api_query_params（如有）。"
+        }
+      },
+      {
+        "id": "ifelse_route",
+        "type": "ifelse",
+        "title": "路由至数据源采集",
+        "config": {
+          "cases": [
+            {
+              "id": "mysql_only",
+              "logical_operator": "and",
+              "conditions": [
+                {
+                  "variable": "sources",
+                  "value_selector": [
+                    "llm_plan",
+                    "output"
+                  ],
+                  "operator": "contains",
+                  "value": "mysql"
+                },
+                {
+                  "variable": "sources",
+                  "value_selector": [
+                    "llm_plan",
+                    "output"
+                  ],
+                  "operator": "not_contains",
+                  "value": "api"
+                }
+              ]
+            },
+            {
+              "id": "api_only",
+              "logical_operator": "and",
+              "conditions": [
+                {
+                  "variable": "sources",
+                  "value_selector": [
+                    "llm_plan",
+                    "output"
+                  ],
+                  "operator": "contains",
+                  "value": "api"
+                },
+                {
+                  "variable": "sources",
+                  "value_selector": [
+                    "llm_plan",
+                    "output"
+                  ],
+                  "operator": "not_contains",
+                  "value": "mysql"
+                }
+              ]
+            },
+            {
+              "id": "both",
+              "logical_operator": "and",
+              "conditions": [
+                {
+                  "variable": "sources",
+                  "value_selector": [
+                    "llm_plan",
+                    "output"
+                  ],
+                  "operator": "contains",
+                  "value": "mysql"
+                },
+                {
+                  "variable": "sources",
+                  "value_selector": [
+                    "llm_plan",
+                    "output"
+                  ],
+                  "operator": "contains",
+                  "value": "api"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "tool_fetch_mysql",
+        "type": "tool",
+        "title": "采集MySQL增量数据",
+        "config": {
+          "variables": [
+            {
+              "variable": "mysql_connection_config",
+              "value_selector": [
+                "start",
+                "mysql_connection_config"
+              ]
+            },
+            {
+              "variable": "mysql_query_params",
+              "value_selector": [
+                "llm_plan",
+                "output",
+                "mysql_query_params"
+              ]
+            }
+          ],
+          "method": "post",
+          "url": "https://httpbin.org/get",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "action": "fetch_mysql_incremental",
+            "config": "{{mysql_connection_config}}",
+            "params": "{{mysql_query_params}}"
+          }
+        }
+      },
+      {
+        "id": "tool_fetch_api",
+        "type": "tool",
+        "title": "采集API增量数据",
+        "config": {
+          "variables": [
+            {
+              "variable": "api_endpoint_config",
+              "value_selector": [
+                "start",
+                "api_endpoint_config"
+              ]
+            },
+            {
+              "variable": "api_query_params",
+              "value_selector": [
+                "llm_plan",
+                "output",
+                "api_query_params"
+              ]
+            }
+          ],
+          "method": "post",
+          "url": "https://httpbin.org/get",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "action": "fetch_api_incremental",
+            "config": "{{api_endpoint_config}}",
+            "params": "{{api_query_params}}"
+          }
+        }
+      },
+      {
+        "id": "variable_aggregator_1",
+        "type": "variable_aggregator",
+        "title": "合并采集数据",
+        "config": {
+          "variables": [
+            {
+              "variable": "mysql_data",
+              "value_selector": [
+                "tool_fetch_mysql",
+                "output"
+              ]
+            },
+            {
+              "variable": "api_data",
+              "value_selector": [
+                "tool_fetch_api",
+                "output"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "code_clean_transform",
+        "type": "code",
+        "title": "数据清洗与转换",
+        "config": {
+          "variables": [
+            {
+              "variable": "raw_data",
+              "value_selector": [
+                "variable_aggregator_1",
+                "output"
+              ]
+            },
+            {
+              "variable": "internal_schema_definition",
+              "value_selector": [
+                "start",
+                "internal_schema_definition"
+              ]
+            },
+            {
+              "variable": "dimension_table_config",
+              "value_selector": [
+                "start",
+                "dimension_table_config"
+              ]
+            }
+          ],
+          "language": "python",
+          "script": "def clean_and_transform(raw_data, schema_def, dim_config):\n    # 1. 解析原始数据\n    # 2. 根据schema格式化字段\n    # 3. 去重（基于业务主键）\n    # 4. 关联维表（如果配置了dim_config）\n    # 5. 返回清洗后的数据列表\n    cleaned_data = []  # 示例\n    return cleaned_data",
+          "example_key": "clean_text"
+        }
+      },
+      {
+        "id": "code_route_batch",
+        "type": "code",
+        "title": "路由与分批",
+        "config": {
+          "variables": [
+            {
+              "variable": "cleaned_data",
+              "value_selector": [
+                "code_clean_transform",
+                "output"
+              ]
+            },
+            {
+              "variable": "routing_rules",
+              "value_selector": [
+                "start",
+                "routing_rules"
+              ]
+            }
+          ],
+          "language": "python",
+          "script": "def route_and_batch(cleaned_data, routing_rules):\n    # 1. 根据租户ID和路由规则，将数据分配到不同的目标表\n    # 2. 按目标表分批，每批大小适中\n    # 3. 返回结构：{'target_table_1': [batch1, batch2, ...], ...}\n    batched_data = {}  # 示例\n    return batched_data",
+          "example_key": "parse_json"
+        }
+      },
+      {
+        "id": "tool_write_clickhouse",
+        "type": "tool",
+        "title": "写入ClickHouse",
+        "config": {
+          "variables": [
+            {
+              "variable": "batched_data",
+              "value_selector": [
+                "code_route_batch",
+                "output"
+              ]
+            },
+            {
+              "variable": "clickhouse_cluster_config",
+              "value_selector": [
+                "start",
+                "clickhouse_cluster_config"
+              ]
+            },
+            {
+              "variable": "failure_threshold",
+              "value_selector": [
+                "start",
+                "failure_threshold"
+              ]
+            }
+          ],
+          "method": "post",
+          "url": "https://httpbin.org/get",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "action": "batch_write_clickhouse",
+            "data": "{{batched_data}}",
+            "config": "{{clickhouse_cluster_config}}",
+            "failure_threshold": "{{failure_threshold}}"
+          }
+        }
+      },
+      {
+        "id": "code_handle_failure",
+        "type": "code",
+        "title": "处理失败记录",
+        "config": {
+          "variables": [
+            {
+              "variable": "failed_records",
+              "value_selector": [
+                "tool_write_clickhouse",
+                "output",
+                "failed_records"
+              ]
+            },
+            {
+              "variable": "s3_dead_letter_config",
+              "value_selector": [
+                "start",
+                "s3_dead_letter_config"
+              ]
+            }
+          ],
+          "language": "python",
+          "script": "def handle_failure(failed_records, s3_config):\n    # 1. 将失败记录格式化\n    # 2. 上传至S3死信队列\n    # 3. 返回S3位置信息\n    location = \"s3://bucket/path/failed_records.json\"  # 示例\n    return location",
+          "example_key": "format_markdown"
+        }
+      },
+      {
+        "id": "variable_aggregator_2",
+        "type": "variable_aggregator",
+        "title": "聚合最终结果",
+        "config": {
+          "variables": [
+            {
+              "variable": "write_result",
+              "value_selector": [
+                "tool_write_clickhouse",
+                "output"
+              ]
+            },
+            {
+              "variable": "dead_letter_location",
+              "value_selector": [
+                "code_handle_failure",
+                "output"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "llm_generate_report",
+        "type": "llm",
+        "title": "生成同步报告与更新元数据",
+        "config": {
+          "variables": [
+            {
+              "variable": "aggregated_result",
+              "value_selector": [
+                "variable_aggregator_2",
+                "output"
+              ]
+            }
+          ],
+          "prompt": "根据数据写入结果和可能的死信记录，生成一份结构化的数据同步报告。报告需包含：成功/失败记录数、涉及的目标表、同步延迟估算、吞吐量指标。同时，生成数据血缘与同步位点已更新的确认语句，以及监控指标已推送至Prometheus的确认。输出格式为JSON，包含字段：data_sync_report、dead_letter_records_location、metadata_update_confirmation、prometheus_metrics_pushed。"
+        }
+      },
+      {
+        "id": "answer",
+        "type": "answer",
+        "title": "输出结果"
+      }
+    ],
+    "edges": [
+      {
+        "source": "code_clean_transform",
+        "target": "code_route_batch"
+      },
+      {
+        "source": "code_handle_failure",
+        "target": "variable_aggregator_2"
+      },
+      {
+        "source": "code_route_batch",
+        "target": "tool_write_clickhouse"
+      },
+      {
+        "source": "ifelse_route",
+        "target": "tool_fetch_api",
+        "branch": "api_only"
+      },
+      {
+        "source": "ifelse_route",
+        "target": "tool_fetch_api",
+        "branch": "both"
+      },
+      {
+        "source": "ifelse_route",
+        "target": "tool_fetch_mysql",
+        "branch": "both"
+      },
+      {
+        "source": "ifelse_route",
+        "target": "tool_fetch_mysql",
+        "branch": "mysql_only"
+      },
+      {
+        "source": "llm_generate_report",
+        "target": "answer"
+      },
+      {
+        "source": "llm_plan",
+        "target": "ifelse_route"
+      },
+      {
+        "source": "start",
+        "target": "llm_plan"
+      },
+      {
+        "source": "tool_fetch_api",
+        "target": "variable_aggregator_1"
+      },
+      {
+        "source": "tool_fetch_mysql",
+        "target": "variable_aggregator_1"
+      },
+      {
+        "source": "tool_write_clickhouse",
+        "target": "code_handle_failure"
+      },
+      {
+        "source": "tool_write_clickhouse",
+        "target": "variable_aggregator_2"
+      },
+      {
+        "source": "variable_aggregator_1",
+        "target": "code_clean_transform"
+      },
+      {
+        "source": "variable_aggregator_2",
+        "target": "llm_generate_report"
+      }
+    ],
+    "meta": {
+      "allow_autofix_ifelse": false,
+      "allow_autowrap_fail_branch": false,
+      "max_fail_branch_nodes": 2,
+      "autofix_warnings": 1,
+      "planning_mode": "llm_v2",
+      "model": "deepseek-chat",
+      "provider": "deepseek",
+      "prompt_version": "v2.1",
+      "schema_version": "wf-spec.v2",
+      "score": 101.762,
+      "selected_candidate_id": "cand_1",
+      "complexity_level": "complex",
+      "candidate_count": 3
+    },
+    "requirement_meta": {
+      "app_name": "多源异构数据同步与清洗工作流",
+      "description": "一个八节点中等复杂工作流，用于监听上游业务系统数据变更，并发采集MySQL和RESTful API的增量数据，经过格式化、去重、关联、路由等清洗步骤后，批量写入ClickHouse集群，并处理异常、更新元数据和上报监控指标。",
+      "scene": "generic",
+      "user_goal": "自动化、可靠地完成从多源异构数据（MySQL、RESTful API）到目标数据仓库（ClickHouse）的增量数据同步、清洗与入库，并具备完整的监控、异常处理和元数据管理能力。",
+      "inputs": [
+        {
+          "name": "upstream_change_event",
+          "label": "上游变更监听事件",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "mysql_connection_config",
+          "label": "MySQL连接与增量查询配置",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "api_endpoint_config",
+          "label": "RESTful API端点与认证配置",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "internal_schema_definition",
+          "label": "内部通用Schema定义",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "dimension_table_config",
+          "label": "维表关联配置",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "routing_rules",
+          "label": "分库分表路由规则（基于租户ID）",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "clickhouse_cluster_config",
+          "label": "目标ClickHouse集群配置",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "failure_threshold",
+          "label": "写入失败阈值",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "s3_dead_letter_config",
+          "label": "S3死信队列存储配置",
+          "type": "text",
+          "required": false
+        }
+      ],
+      "output_contract": {
+        "data_sync_report": "本次数据同步的摘要报告，包含成功/失败记录数、目标表、同步延迟、吞吐量等关键指标。",
+        "dead_letter_records_location": "（如果存在）写入失败并转储至S3的死信记录位置信息。",
+        "metadata_update_confirmation": "数据血缘与同步位点信息已更新的确认。",
+        "prometheus_metrics_pushed": "推送至Prometheus的监控指标确认。"
+      },
+      "capabilities": [
+        "intent_analysis",
+        "planning",
+        "branching",
+        "tool_call",
+        "code_execution",
+        "optimization",
+        "formatting"
+      ],
+      "node_preferences": {
+        "target_node_count": 8,
+        "need_private_kb": false,
+        "need_code_node": true,
+        "need_tools": true,
+        "need_branching": true
+      },
+      "runtime_config": {
+        "execution_mode": "triggered",
+        "concurrent_nodes": [
+          "并发数据采集节点"
+        ],
+        "error_handling": "dead_letter_queue_with_retry",
+        "state_persistence": "required_for_checkpoints",
+        "model_tier": "deepseek-chat",
+        "allow_autofix_ifelse": false,
+        "allow_autowrap_fail_branch": false,
+        "max_fail_branch_nodes": 2
+      },
+      "constraints": []
+    }
+  }
+}

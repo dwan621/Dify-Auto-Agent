@@ -1,0 +1,371 @@
+{
+  "timestamp": "2026-04-16T09:48:35.238508",
+  "model_name": "deepseek-chat",
+  "provider": "deepseek",
+  "prompt_version": "v2.1",
+  "schema_version": "wf-spec.v2",
+  "requirement": {
+    "app_name": "自动化数据处理工作流",
+    "description": "一个包含两个IFELSE分支的自动化数据处理工作流，用于处理FTP上的CSV文件，包括文件检查、数据清洗、IP地理位置补全、风险判断和告警生成。",
+    "scene": "generic",
+    "user_goal": "自动化地从FTP获取CSV文件，进行数据清洗和增强处理，根据处理结果判断风险等级并生成相应的告警或摘要报告。",
+    "inputs": [
+      {
+        "name": "ftp_config",
+        "label": "FTP配置信息",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "db_connection",
+        "label": "数据库连接字符串",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "api_key",
+        "label": "API密钥（用于IP地理位置服务）",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "monitoring_platform_url",
+        "label": "监控平台URL",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "alert_recipients",
+        "label": "告警接收人（可选，逗号分隔）",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "output_contract": {
+      "summary": "处理过程的最终摘要报告",
+      "status": "处理状态（成功/失败/无文件）",
+      "files_processed": "处理的文件数量",
+      "records_processed": "处理的记录数量",
+      "risk_level": "最终风险等级",
+      "alert_generated": "是否生成了告警"
+    },
+    "capabilities": [
+      "input_check",
+      "planning",
+      "code_execution",
+      "branching",
+      "generation",
+      "formatting"
+    ],
+    "node_preferences": {
+      "target_node_count": 12,
+      "need_private_kb": false,
+      "need_code_node": true,
+      "need_tools": false,
+      "need_branching": true
+    },
+    "runtime_config": {
+      "max_execution_time": 300,
+      "retry_times": 2,
+      "timeout": 60,
+      "model_tier": "deepseek-chat",
+      "allow_autofix_ifelse": false,
+      "allow_autowrap_fail_branch": false,
+      "max_fail_branch_nodes": 2
+    },
+    "constraints": []
+  },
+  "candidate_scores": [
+    {
+      "id": "cand_1",
+      "score": -63.4,
+      "ok": false,
+      "warnings": [
+        "存在多个 answer 节点",
+        "补充 answer 节点",
+        "原始 edges 为空，已按节点顺序自动连边",
+        "已移除 ifelse ifelse_input_check 的无 branch 出边: ifelse_input_check->code_ftp_connect",
+        "ifelse ifelse_input_check 缺少分支 valid_input（严格模式未自动补边）",
+        "ifelse ifelse_input_check 缺少分支 invalid_input（严格模式未自动补边）",
+        "已移除 ifelse ifelse_input_check 的无 branch 出边: ifelse_input_check->answer_invalid_input",
+        "已移除 ifelse ifelse_input_check 的无 branch 出边: ifelse_input_check->code_ftp_connect",
+        "ifelse ifelse_input_check 缺少分支 valid_input（严格模式未自动补边）",
+        "ifelse ifelse_input_check 缺少分支 invalid_input（严格模式未自动补边）",
+        "已移除 ifelse ifelse_input_check 的无 branch 出边: ifelse_input_check->answer_invalid_input",
+        "已移除 ifelse ifelse_input_check 的无 branch 出边: ifelse_input_check->code_ftp_connect",
+        "ifelse ifelse_input_check 缺少分支 valid_input（严格模式未自动补边）",
+        "ifelse ifelse_input_check 缺少分支 invalid_input（严格模式未自动补边）"
+      ],
+      "stats": {
+        "total_nodes": 6,
+        "type_counts": {
+          "start": 1,
+          "code": 2,
+          "ifelse": 1,
+          "answer": 2
+        },
+        "non_llm_node_ratio": 1.0,
+        "has_path_start_to_answer": false
+      },
+      "repair_rounds": 2
+    }
+  ],
+  "selected_candidate_id": "cand_1",
+  "selected_spec": {
+    "workflow_name": "自动化数据处理工作流",
+    "description": "一个包含两个IFELSE分支的自动化数据处理工作流，用于处理FTP上的CSV文件，包括文件检查、数据清洗、IP地理位置补全、风险判断和告警生成。",
+    "scene": "generic",
+    "inputs": [
+      {
+        "name": "ftp_config",
+        "label": "FTP配置信息",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "db_connection",
+        "label": "数据库连接字符串",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "api_key",
+        "label": "API密钥（用于IP地理位置服务）",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "monitoring_platform_url",
+        "label": "监控平台URL",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "alert_recipients",
+        "label": "告警接收人（可选，逗号分隔）",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "output_contract": {
+      "summary": "处理过程的最终摘要报告",
+      "status": "处理状态（成功/失败/无文件）",
+      "files_processed": "处理的文件数量",
+      "records_processed": "处理的记录数量",
+      "risk_level": "最终风险等级",
+      "alert_generated": "是否生成了告警"
+    },
+    "steps": [
+      {
+        "id": "start",
+        "type": "start",
+        "title": "开始"
+      },
+      {
+        "id": "code_check_input",
+        "type": "code",
+        "title": "输入参数检查",
+        "config": {
+          "language": "python",
+          "script": "def check_inputs(ftp_config, db_connection, api_key, monitoring_platform_url, alert_recipients):\n    errors = []\n    if not ftp_config:\n        errors.append('FTP配置信息不能为空')\n    if not db_connection:\n        errors.append('数据库连接字符串不能为空')\n    if not api_key:\n        errors.append('API密钥不能为空')\n    if not monitoring_platform_url:\n        errors.append('监控平台URL不能为空')\n    \n    if errors:\n        return {'valid': False, 'errors': errors}\n    else:\n        return {'valid': True, 'alert_recipients': alert_recipients or ''}",
+          "variables": [
+            {
+              "variable": "ftp_config",
+              "value_selector": [
+                "start",
+                "ftp_config"
+              ]
+            },
+            {
+              "variable": "db_connection",
+              "value_selector": [
+                "start",
+                "db_connection"
+              ]
+            },
+            {
+              "variable": "api_key",
+              "value_selector": [
+                "start",
+                "api_key"
+              ]
+            },
+            {
+              "variable": "monitoring_platform_url",
+              "value_selector": [
+                "start",
+                "monitoring_platform_url"
+              ]
+            },
+            {
+              "variable": "alert_recipients",
+              "value_selector": [
+                "start",
+                "alert_recipients"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "ifelse_input_check",
+        "type": "ifelse",
+        "title": "输入检查结果判断",
+        "config": {
+          "cases": [
+            {
+              "id": "valid_input",
+              "logical_operator": "and",
+              "conditions": [
+                {
+                  "variable": "check_result.valid",
+                  "operator": "==",
+                  "value": true
+                }
+              ]
+            },
+            {
+              "id": "invalid_input",
+              "logical_operator": "and",
+              "conditions": [
+                {
+                  "variable": "check_result.valid",
+                  "operator": "==",
+                  "value": false
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "code_ftp_connect",
+        "type": "code",
+        "title": "连接FTP并检查文件",
+        "config": {
+          "language": "python",
+          "script": "import ftplib\nimport json\n\ndef connect_ftp(ftp_config_str):\n    try:\n        ftp_config = json.loads(ftp_config_str)\n        ftp = ftplib.FTP()\n        ftp.connect(ftp_config.get('host', ''), ftp_config.get('port', 21))\n        ftp.login(ftp_config.get('username', ''), ftp_config.get('password', ''))\n        \n        # 检查CSV文件\n        files = ftp.nlst()\n        csv_files = [f for f in files if f.lower().endswith('.csv')]\n        \n        if not csv_files:\n            ftp.quit()\n            return {'connected': True, 'files_found': False, 'file_count': 0, 'file_list': []}\n        \n        # 获取文件信息\n        file_info = []\n        for file in csv_files[:5]:  # 最多处理5个文件\n            size = ftp.size(file)\n            file_info.append({'name': file, 'size': size})\n        \n        ftp.quit()\n        return {\n            'connected': True,\n            'files_found': True,\n            'file_count': len(csv_files),\n            'file_list': file_info\n        }\n    except Exception as e:\n        return {'connected': False, 'error': str(e)}",
+          "variables": [
+            {
+              "variable": "ftp_config",
+              "value_selector": [
+                "start",
+                "ftp_config"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "answer_invalid_input",
+        "type": "answer",
+        "title": "输入错误回复"
+      },
+      {
+        "id": "answer",
+        "type": "answer",
+        "title": "最终结果回复"
+      }
+    ],
+    "edges": [
+      {
+        "source": "code_check_input",
+        "target": "ifelse_input_check"
+      },
+      {
+        "source": "code_ftp_connect",
+        "target": "answer"
+      },
+      {
+        "source": "start",
+        "target": "code_check_input"
+      }
+    ],
+    "meta": {
+      "allow_autofix_ifelse": false,
+      "allow_autowrap_fail_branch": false,
+      "max_fail_branch_nodes": 2,
+      "autofix_warnings": 2,
+      "planning_mode": "llm_v2",
+      "model": "deepseek-chat",
+      "provider": "deepseek",
+      "prompt_version": "v2.1",
+      "schema_version": "wf-spec.v2",
+      "score": -63.4,
+      "selected_candidate_id": "cand_1",
+      "complexity_level": "complex",
+      "candidate_count": 3
+    },
+    "requirement_meta": {
+      "app_name": "自动化数据处理工作流",
+      "description": "一个包含两个IFELSE分支的自动化数据处理工作流，用于处理FTP上的CSV文件，包括文件检查、数据清洗、IP地理位置补全、风险判断和告警生成。",
+      "scene": "generic",
+      "user_goal": "自动化地从FTP获取CSV文件，进行数据清洗和增强处理，根据处理结果判断风险等级并生成相应的告警或摘要报告。",
+      "inputs": [
+        {
+          "name": "ftp_config",
+          "label": "FTP配置信息",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "db_connection",
+          "label": "数据库连接字符串",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "api_key",
+          "label": "API密钥（用于IP地理位置服务）",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "monitoring_platform_url",
+          "label": "监控平台URL",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "alert_recipients",
+          "label": "告警接收人（可选，逗号分隔）",
+          "type": "text",
+          "required": false
+        }
+      ],
+      "output_contract": {
+        "summary": "处理过程的最终摘要报告",
+        "status": "处理状态（成功/失败/无文件）",
+        "files_processed": "处理的文件数量",
+        "records_processed": "处理的记录数量",
+        "risk_level": "最终风险等级",
+        "alert_generated": "是否生成了告警"
+      },
+      "capabilities": [
+        "input_check",
+        "planning",
+        "code_execution",
+        "branching",
+        "generation",
+        "formatting"
+      ],
+      "node_preferences": {
+        "target_node_count": 12,
+        "need_private_kb": false,
+        "need_code_node": true,
+        "need_tools": false,
+        "need_branching": true
+      },
+      "runtime_config": {
+        "max_execution_time": 300,
+        "retry_times": 2,
+        "timeout": 60,
+        "model_tier": "deepseek-chat",
+        "allow_autofix_ifelse": false,
+        "allow_autowrap_fail_branch": false,
+        "max_fail_branch_nodes": 2
+      },
+      "constraints": []
+    }
+  }
+}

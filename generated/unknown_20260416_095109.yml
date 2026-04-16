@@ -1,0 +1,892 @@
+app:
+  description: 一个包含输入校验和风险判断分支的自动化数据处理工作流，用于处理FTP文件下载、数据清洗、补全、入库，并根据风险级别生成不同摘要。
+  icon: 🤖
+  icon_background: '#FFEAD5'
+  mode: advanced-chat
+  name: 自动化数据处理工作流
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/deepseek:0.0.11@35bcd3f233f99d07bdadef8b326945df3bda5e8f773330144bc90d84800336b9
+    version: null
+kind: app
+version: 0.6.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: false
+      fileUploadConfig:
+        attachment_image_file_size_limit: 2
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        file_upload_limit: 20
+        image_file_batch_limit: 10
+        image_file_size_limit: 10
+        single_chunk_attachment_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: code
+        targetType: llm
+        isInIteration: false
+        isInLoop: false
+      id: data_cleaning-source-data_completion-target
+      source: data_cleaning
+      sourceHandle: source
+      target: data_completion
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: http-request
+        isInIteration: false
+        isInLoop: false
+      id: data_completion-source-database_insert-target
+      source: data_completion
+      sourceHandle: source
+      target: database_insert
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: database_insert-source-risk_assessment-target
+      source: database_insert
+      sourceHandle: source
+      target: risk_assessment
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: ftp_download-source-data_cleaning-target
+      source: ftp_download
+      sourceHandle: source
+      target: data_cleaning
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: answer
+        isInIteration: false
+        isInLoop: false
+      id: generate_summary-source-final_answer-target
+      source: generate_summary
+      sourceHandle: source
+      target: final_answer
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: answer
+        isInIteration: false
+        isInLoop: false
+      id: ifelse_input_check-invalid_input-error_response-target
+      source: ifelse_input_check
+      sourceHandle: invalid_input
+      target: error_response
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: http-request
+        isInIteration: false
+        isInLoop: false
+      id: ifelse_input_check-valid_input-ftp_download-target
+      source: ifelse_input_check
+      sourceHandle: valid_input
+      target: ftp_download
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: http-request
+        isInIteration: false
+        isInLoop: false
+      id: ifelse_risk-high_risk-send_alert-target
+      source: ifelse_risk
+      sourceHandle: high_risk
+      target: send_alert
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: http-request
+        isInIteration: false
+        isInLoop: false
+      id: ifelse_risk-medium_risk-send_alert-target
+      source: ifelse_risk
+      sourceHandle: medium_risk
+      target: send_alert
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: ifelse_risk-low_risk-summary_aggregator-target
+      source: ifelse_risk
+      sourceHandle: low_risk
+      target: summary_aggregator
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+        isInLoop: false
+      id: input_check-source-ifelse_input_check-target
+      source: input_check
+      sourceHandle: source
+      target: ifelse_input_check
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+        isInLoop: false
+      id: risk_assessment-source-ifelse_risk-target
+      source: risk_assessment
+      sourceHandle: source
+      target: ifelse_risk
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: send_alert-source-summary_aggregator-target
+      source: send_alert
+      sourceHandle: source
+      target: summary_aggregator
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: start-source-input_check-target
+      source: start
+      sourceHandle: source
+      target: input_check
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: llm
+        isInIteration: false
+        isInLoop: false
+      id: summary_aggregator-source-generate_summary-target
+      source: summary_aggregator
+      sourceHandle: source
+      target: generate_summary
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        selected: false
+        title: 开始
+        type: start
+        variables:
+        - default: ''
+          hint: ''
+          label: FTP配置
+          options: []
+          placeholder: ''
+          required: true
+          type: text-input
+          variable: ftp_config
+        - default: ''
+          hint: ''
+          label: 数据库连接字符串
+          options: []
+          placeholder: ''
+          required: true
+          type: text-input
+          variable: db_connection
+        - default: ''
+          hint: ''
+          label: API密钥
+          options: []
+          placeholder: ''
+          required: true
+          type: text-input
+          variable: api_key
+        - default: ''
+          hint: ''
+          label: 监控平台URL
+          options: []
+          placeholder: ''
+          required: true
+          type: text-input
+          variable: monitoring_platform_url
+        - default: ''
+          hint: ''
+          label: 告警接收人
+          options: []
+          placeholder: ''
+          required: false
+          type: text-input
+          variable: alert_recipients
+      height: 72
+      id: start
+      position:
+        x: 80
+        y: 280
+      positionAbsolute:
+        x: 80
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "def validate_inputs(ftp_config, db_connection, api_key, monitoring_platform_url,\
+          \ alert_recipients):\n    errors = []\n    if not ftp_config or 'host' not\
+          \ in ftp_config:\n        errors.append('FTP配置无效')\n    if not db_connection\
+          \ or '://' not in db_connection:\n        errors.append('数据库连接字符串无效')\n\
+          \    if not api_key or len(api_key) < 10:\n        errors.append('API密钥无效')\n\
+          \    if not monitoring_platform_url or not monitoring_platform_url.startswith('http'):\n\
+          \        errors.append('监控平台URL无效')\n    \n    is_valid = len(errors) ==\
+          \ 0\n    return {\n        'is_valid': is_valid,\n        'errors': errors,\n\
+          \        'has_alert_recipients': bool(alert_recipients and alert_recipients.strip())\n\
+          \    }\n"
+        code_language: python
+        outputs:
+          result:
+            type: string
+            children: null
+        selected: false
+        title: 输入校验
+        type: code
+        variables:
+        - value_selector:
+          - start
+          - ftp_config
+          variable: ftp_config
+        - value_selector:
+          - start
+          - db_connection
+          variable: db_connection
+        - value_selector:
+          - start
+          - api_key
+          variable: api_key
+        - value_selector:
+          - start
+          - monitoring_platform_url
+          variable: monitoring_platform_url
+        - value_selector:
+          - start
+          - alert_recipients
+          variable: alert_recipients
+      height: 51
+      id: input_check
+      position:
+        x: 380
+        y: 280
+      positionAbsolute:
+        x: 380
+        y: 280
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        cases:
+        - case_id: valid_input
+          id: valid_input
+          logical_operator: or
+          conditions:
+          - id: cond_6ebcd15c
+            varType: string
+            comparison_operator: contains
+            value: ROUTE=valid_input
+            variable_selector:
+            - input_check
+            - text
+        - case_id: invalid_input
+          id: invalid_input
+          logical_operator: or
+          conditions:
+          - id: cond_98bfe490
+            varType: string
+            comparison_operator: contains
+            value: ROUTE=invalid_input
+            variable_selector:
+            - input_check
+            - text
+        selected: false
+        title: 输入校验分支
+        type: if-else
+      height: 99
+      id: ifelse_input_check
+      position:
+        x: 680
+        y: 280
+      positionAbsolute:
+        x: 680
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        answer: '{{#ifelse_input_check.result#}}'
+        selected: false
+        title: 输入错误响应
+        type: answer
+        variables: []
+      height: 102
+      id: error_response
+      position:
+        x: 980
+        y: 280
+      positionAbsolute:
+        x: 980
+        y: 280
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          type: none
+          data: []
+        headers: 'Content-Type: application/json'
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 100
+        selected: true
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: FTP文件下载
+        type: http-request
+        url: https://httpbin.org/get
+        variables:
+        - value_selector:
+          - start
+          - ftp_config
+          variable: ftp_config
+      height: 80
+      id: ftp_download
+      position:
+        x: 980
+        y: 430
+      positionAbsolute:
+        x: 980
+        y: 430
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        code: "def clean_data(download_result):\n    # 模拟数据清洗过程\n    files = download_result.get('files',\
+          \ [])\n    cleaned_data = []\n    processed_files = []\n    \n    for file\
+          \ in files:\n        # 清洗逻辑\n        cleaned_data.append({\n           \
+          \ 'file': file,\n            'status': 'cleaned',\n            'records':\
+          \ 100\n        })\n        processed_files.append(file)\n    \n    return\
+          \ {\n        'cleaned_data': cleaned_data,\n        'processed_files': processed_files,\n\
+          \        'total_records': len(cleaned_data) * 100\n    }\n"
+        code_language: python
+        outputs:
+          result:
+            type: string
+            children: null
+        selected: false
+        title: 数据清洗
+        type: code
+        variables:
+        - value_selector:
+          - ftp_download
+          - response
+          variable: download_result
+      height: 51
+      id: data_cleaning
+      position:
+        x: 1280
+        y: 280
+      positionAbsolute:
+        x: 1280
+        y: 280
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            {{#sys.files#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: false
+            size: 10
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: deepseek-chat
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - role: system
+          text: '请对以下清洗后的数据进行智能补全，填充缺失字段，确保数据完整性：
+
+            {{data_cleaning.cleaned_data}}
+
+
+            要求：
+
+            1. 保持数据结构一致
+
+            2. 补充合理的默认值
+
+            3. 标记补全的记录
+
+
+            用户输入：
+
+            - ftp_config: {{#start.ftp_config#}}
+
+            - db_connection: {{#start.db_connection#}}
+
+            - api_key: {{#start.api_key#}}
+
+            - monitoring_platform_url: {{#start.monitoring_platform_url#}}
+
+            - alert_recipients: {{#start.alert_recipients#}}
+
+
+            【代码计算/处理结果】:
+
+            - data_cleaning: {{#data_cleaning.result#}}
+
+
+            输出要求：
+
+            - 只输出最终结果，不要输出推理过程或解释
+
+            - 不要输出 markdown 代码块围栏（```）'
+        selected: false
+        title: 数据补全
+        type: llm
+        vision:
+          enabled: false
+      height: 87
+      id: data_completion
+      position:
+        x: 1580
+        y: 280
+      positionAbsolute:
+        x: 1580
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          type: none
+          data: []
+        headers: ''
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 100
+        selected: true
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: 数据入库
+        type: http-request
+        url: https://httpbin.org/get
+        variables:
+        - value_selector:
+          - start
+          - db_connection
+          variable: db_connection
+        - value_selector:
+          - start
+          - api_key
+          variable: api_key
+        - value_selector:
+          - data_completion
+          - completion
+          variable: data_completion.completion
+      height: 80
+      id: database_insert
+      position:
+        x: 1880
+        y: 280
+      positionAbsolute:
+        x: 1880
+        y: 280
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        code: "def assess_risk(insert_result, processed_files, total_records):\n \
+          \   # 基于入库结果和数据处理量评估风险\n    success_count = insert_result.get('success_count',\
+          \ 0)\n    error_count = insert_result.get('error_count', 0)\n    \n    risk_level\
+          \ = 'low'\n    if error_count > 10:\n        risk_level = 'high'\n    elif\
+          \ error_count > 0:\n        risk_level = 'medium'\n    \n    # 处理大量数据时风险增加\n\
+          \    if total_records > 10000:\n        if risk_level == 'low':\n      \
+          \      risk_level = 'medium'\n        elif risk_level == 'medium':\n   \
+          \         risk_level = 'high'\n    \n    return {\n        'risk_level':\
+          \ risk_level,\n        'success_count': success_count,\n        'error_count':\
+          \ error_count,\n        'requires_alert': risk_level in ['high', 'medium']\n\
+          \    }\n"
+        code_language: python
+        outputs:
+          result:
+            type: string
+            children: null
+        selected: false
+        title: 风险评估
+        type: code
+        variables:
+        - value_selector:
+          - database_insert
+          - response
+          variable: insert_result
+        - value_selector:
+          - data_cleaning
+          - processed_files
+          variable: processed_files
+        - value_selector:
+          - data_cleaning
+          - total_records
+          variable: total_records
+      height: 51
+      id: risk_assessment
+      position:
+        x: 2180
+        y: 280
+      positionAbsolute:
+        x: 2180
+        y: 280
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        cases:
+        - case_id: high_risk
+          id: high_risk
+          logical_operator: or
+          conditions:
+          - id: cond_92fb3dc0
+            varType: string
+            comparison_operator: contains
+            value: ROUTE=high_risk
+            variable_selector:
+            - risk_assessment
+            - text
+        - case_id: medium_risk
+          id: medium_risk
+          logical_operator: or
+          conditions:
+          - id: cond_4e1b1624
+            varType: string
+            comparison_operator: contains
+            value: ROUTE=medium_risk
+            variable_selector:
+            - risk_assessment
+            - text
+        - case_id: low_risk
+          id: low_risk
+          logical_operator: or
+          conditions:
+          - id: cond_8e495c63
+            varType: string
+            comparison_operator: contains
+            value: ROUTE=low_risk
+            variable_selector:
+            - risk_assessment
+            - text
+        selected: false
+        title: 风险分支判断
+        type: if-else
+      height: 99
+      id: ifelse_risk
+      position:
+        x: 2480
+        y: 280
+      positionAbsolute:
+        x: 2480
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          type: none
+          data: []
+        headers: 'Content-Type: application/json'
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 100
+        selected: true
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: 发送告警
+        type: http-request
+        url: https://httpbin.org/get
+        variables:
+        - value_selector:
+          - start
+          - monitoring_platform_url
+          variable: monitoring_platform_url
+        - value_selector:
+          - start
+          - alert_recipients
+          variable: alert_recipients
+        - value_selector:
+          - risk_assessment
+          - risk_level
+          variable: risk_assessment.risk_level
+      height: 80
+      id: send_alert
+      position:
+        x: 2780
+        y: 280
+      positionAbsolute:
+        x: 2780
+        y: 280
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        code: "\nimport json\n\ndef main(arg1: str = \"\", arg2: str = \"\"):\n  \
+          \  values = []\n    values.append(arg1)\n    values.append(arg2)\n    for\
+          \ v in values:\n        if v is None:\n            continue\n        if\
+          \ isinstance(v, str) and v.strip():\n            return {\"output\": v}\n\
+          \        if not isinstance(v, str):\n            try:\n                s\
+          \ = json.dumps(v, ensure_ascii=False)\n                if isinstance(s,\
+          \ str) and s.strip():\n                    return {\"output\": s}\n    \
+          \        except Exception:\n                pass\n    return {\"output\"\
+          : \"\"}\n"
+        code_language: python3
+        outputs:
+          output:
+            type: string
+            children: null
+        selected: false
+        title: 摘要聚合
+        type: code
+        variables:
+        - variable: arg1
+          value_selector:
+          - ifelse_risk
+          - result
+        - variable: arg2
+          value_selector:
+          - send_alert
+          - body
+      height: 51
+      id: summary_aggregator
+      position:
+        x: 3080
+        y: 280
+      positionAbsolute:
+        x: 3080
+        y: 280
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            {{#sys.files#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: false
+            size: 10
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: deepseek-chat
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - role: system
+          text: '根据以下处理结果生成数据处理摘要：
+
+
+            处理文件：{{summary_aggregator.processed_files}}
+
+            处理记录数：{{summary_aggregator.records_processed}}
+
+            风险级别：{{summary_aggregator.risk_level}}
+
+            成功记录：{{summary_aggregator.success_count}}
+
+            失败记录：{{summary_aggregator.error_count}}
+
+
+            请生成简洁明了的数据处理摘要报告。
+
+
+            用户输入：
+
+            - ftp_config: {{#start.ftp_config#}}
+
+            - db_connection: {{#start.db_connection#}}
+
+            - api_key: {{#start.api_key#}}
+
+            - monitoring_platform_url: {{#start.monitoring_platform_url#}}
+
+            - alert_recipients: {{#start.alert_recipients#}}
+
+
+            【上游节点输出结果】:
+
+            - summary_aggregator: {{#summary_aggregator.output#}}
+
+
+            输出要求：
+
+            - 只输出最终结果，不要输出推理过程或解释
+
+            - 不要输出 markdown 代码块围栏（```）'
+        selected: false
+        title: 生成摘要
+        type: llm
+        vision:
+          enabled: false
+      height: 87
+      id: generate_summary
+      position:
+        x: 3380
+        y: 280
+      positionAbsolute:
+        x: 3380
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        answer: '{{#generate_summary.text#}}'
+        selected: false
+        title: 最终响应
+        type: answer
+        variables: []
+      height: 102
+      id: final_answer
+      position:
+        x: 3680
+        y: 280
+      positionAbsolute:
+        x: 3680
+        y: 280
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    viewport:
+      x: -159.26539869531166
+      y: 186.60632074709312
+      zoom: 0.7578582832551991
+  rag_pipeline_variables: []

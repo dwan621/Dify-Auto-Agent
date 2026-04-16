@@ -1,0 +1,635 @@
+{
+  "timestamp": "2026-04-16T09:11:03.059670",
+  "model_name": "deepseek-chat",
+  "provider": "deepseek",
+  "prompt_version": "v2.1",
+  "schema_version": "wf-spec.v2",
+  "requirement": {
+    "app_name": "CI/CD 自动化部署流水线",
+    "description": "一个由代码推送事件自动触发的八节点CI/CD工作流，涵盖代码质量分析、Docker镜像构建、Kubernetes灰度发布、实时监控与自动回滚，最终发送通知并归档日志。",
+    "scene": "generic",
+    "user_goal": "实现一个自动化、可靠且具备质量门禁和自动回滚能力的CI/CD部署流程，从代码提交到生产环境发布，无需人工干预。",
+    "inputs": [
+      {
+        "name": "repository_url",
+        "label": "代码仓库地址",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "branch",
+        "label": "触发分支",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "sonar_project_key",
+        "label": "SonarQube项目Key",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "dockerfile_path",
+        "label": "Dockerfile路径",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "k8s_manifest",
+        "label": "Kubernetes部署清单",
+        "type": "paragraph",
+        "required": true
+      },
+      {
+        "name": "wechat_webhook_url",
+        "label": "企业微信群机器人Webhook地址",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "output_contract": {
+      "final_report": "包含构建状态、质量门禁结果、发布版本、监控指标（错误率、延迟）和最终发布结果的Markdown格式报告。",
+      "pipeline_log_url": "归档后的流水线执行日志的存储地址或标识符。",
+      "deployment_status": "最终部署状态：成功、失败（含原因）、或已回滚。",
+      "new_image_tag": "构建并推送成功的Docker镜像标签。"
+    },
+    "capabilities": [
+      "intent_analysis",
+      "planning",
+      "tool_call",
+      "branching",
+      "generation",
+      "formatting"
+    ],
+    "node_preferences": {
+      "target_node_count": 8,
+      "need_private_kb": false,
+      "need_code_node": true,
+      "need_tools": true,
+      "need_branching": true
+    },
+    "runtime_config": {
+      "max_execution_time": "30m",
+      "retry_on_failure": true,
+      "concurrent_execution": false,
+      "model_tier": "deepseek-chat",
+      "allow_autofix_ifelse": false,
+      "allow_autowrap_fail_branch": false,
+      "max_fail_branch_nodes": 2
+    },
+    "constraints": []
+  },
+  "candidate_scores": [
+    {
+      "id": "cand_1",
+      "score": 89.1,
+      "ok": true,
+      "warnings": [
+        "工具节点 code_quality_check url 已重写为白名单地址",
+        "工具节点 docker_build_push url 已重写为白名单地址",
+        "工具节点 k8s_deploy url 已重写为白名单地址",
+        "工具节点 monitoring_check url 已重写为白名单地址",
+        "工具节点 k8s_rollback url 已重写为白名单地址",
+        "工具节点 notification url 已重写为白名单地址",
+        "已移除 docker_build_push 的 fail-branch 配置以避免生成冗余兜底节点"
+      ],
+      "stats": {
+        "total_nodes": 12,
+        "type_counts": {
+          "start": 1,
+          "tool": 6,
+          "ifelse": 2,
+          "variable_aggregator": 1,
+          "code": 1,
+          "answer": 1
+        },
+        "non_llm_node_ratio": 1.0,
+        "has_path_start_to_answer": true
+      },
+      "repair_rounds": 0
+    }
+  ],
+  "selected_candidate_id": "cand_1",
+  "selected_spec": {
+    "workflow_name": "CI/CD 自动化部署流水线",
+    "description": "一个由代码推送事件自动触发的八节点CI/CD工作流，涵盖代码质量分析、Docker镜像构建、Kubernetes灰度发布、实时监控与自动回滚，最终发送通知并归档日志。",
+    "scene": "generic",
+    "inputs": [
+      {
+        "name": "repository_url",
+        "label": "代码仓库地址",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "branch",
+        "label": "触发分支",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "sonar_project_key",
+        "label": "SonarQube项目Key",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "dockerfile_path",
+        "label": "Dockerfile路径",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "k8s_manifest",
+        "label": "Kubernetes部署清单",
+        "type": "paragraph",
+        "required": true
+      },
+      {
+        "name": "wechat_webhook_url",
+        "label": "企业微信群机器人Webhook地址",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "output_contract": {
+      "final_report": "包含构建状态、质量门禁结果、发布版本、监控指标（错误率、延迟）和最终发布结果的Markdown格式报告。",
+      "pipeline_log_url": "归档后的流水线执行日志的存储地址或标识符。",
+      "deployment_status": "最终部署状态：成功、失败（含原因）、或已回滚。",
+      "new_image_tag": "构建并推送成功的Docker镜像标签。"
+    },
+    "steps": [
+      {
+        "id": "start",
+        "type": "start",
+        "title": "开始"
+      },
+      {
+        "id": "code_quality_check",
+        "type": "tool",
+        "title": "代码质量分析",
+        "config": {
+          "method": "post",
+          "url": "https://httpbin.org/get",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "repository_url": "{{repository_url}}",
+            "branch": "{{branch}}",
+            "sonar_project_key": "{{sonar_project_key}}"
+          },
+          "variables": [
+            {
+              "variable": "repository_url",
+              "value_selector": [
+                "start",
+                "repository_url"
+              ]
+            },
+            {
+              "variable": "branch",
+              "value_selector": [
+                "start",
+                "branch"
+              ]
+            },
+            {
+              "variable": "sonar_project_key",
+              "value_selector": [
+                "start",
+                "sonar_project_key"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "quality_gate",
+        "type": "ifelse",
+        "title": "质量门禁检查",
+        "config": {
+          "cases": [
+            {
+              "id": "pass",
+              "logical_operator": "and",
+              "conditions": [
+                {
+                  "variable": "quality_status",
+                  "operator": "==",
+                  "value": "PASSED"
+                }
+              ]
+            },
+            {
+              "id": "fail",
+              "logical_operator": "and",
+              "conditions": [
+                {
+                  "variable": "quality_status",
+                  "operator": "==",
+                  "value": "FAILED"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "docker_build_push",
+        "type": "tool",
+        "title": "Docker镜像构建与推送",
+        "config": {
+          "method": "post",
+          "url": "https://httpbin.org/get",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "repository_url": "{{repository_url}}",
+            "branch": "{{branch}}",
+            "dockerfile_path": "{{dockerfile_path}}"
+          },
+          "variables": [
+            {
+              "variable": "repository_url",
+              "value_selector": [
+                "start",
+                "repository_url"
+              ]
+            },
+            {
+              "variable": "branch",
+              "value_selector": [
+                "start",
+                "branch"
+              ]
+            },
+            {
+              "variable": "dockerfile_path",
+              "value_selector": [
+                "start",
+                "dockerfile_path"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "k8s_deploy",
+        "type": "tool",
+        "title": "Kubernetes灰度发布",
+        "config": {
+          "method": "post",
+          "url": "https://httpbin.org/get",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "k8s_manifest": "{{k8s_manifest}}",
+            "image_tag": "{{new_image_tag}}"
+          },
+          "variables": [
+            {
+              "variable": "k8s_manifest",
+              "value_selector": [
+                "start",
+                "k8s_manifest"
+              ]
+            },
+            {
+              "variable": "new_image_tag",
+              "value_selector": [
+                "docker_build_push",
+                "new_image_tag"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "monitoring_check",
+        "type": "tool",
+        "title": "实时监控检查",
+        "config": {
+          "method": "get",
+          "url": "https://httpbin.org/get",
+          "headers": {},
+          "body": {},
+          "variables": []
+        }
+      },
+      {
+        "id": "rollback_decision",
+        "type": "ifelse",
+        "title": "回滚决策",
+        "config": {
+          "cases": [
+            {
+              "id": "healthy",
+              "logical_operator": "and",
+              "conditions": [
+                {
+                  "variable": "error_rate",
+                  "operator": "<",
+                  "value": 0.01
+                },
+                {
+                  "variable": "latency",
+                  "operator": "<",
+                  "value": 200
+                }
+              ]
+            },
+            {
+              "id": "unhealthy",
+              "logical_operator": "or",
+              "conditions": [
+                {
+                  "variable": "error_rate",
+                  "operator": ">=",
+                  "value": 0.01
+                },
+                {
+                  "variable": "latency",
+                  "operator": ">=",
+                  "value": 200
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "k8s_rollback",
+        "type": "tool",
+        "title": "Kubernetes回滚",
+        "config": {
+          "method": "post",
+          "url": "https://httpbin.org/get",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "rollback_to": "previous_version"
+          },
+          "variables": []
+        }
+      },
+      {
+        "id": "aggregator",
+        "type": "variable_aggregator",
+        "title": "结果聚合",
+        "config": {
+          "variables": [
+            {
+              "variable": "quality_status",
+              "value_selector": [
+                "code_quality_check",
+                "quality_status"
+              ]
+            },
+            {
+              "variable": "new_image_tag",
+              "value_selector": [
+                "docker_build_push",
+                "new_image_tag"
+              ]
+            },
+            {
+              "variable": "deployment_status",
+              "value_selector": [
+                "k8s_deploy",
+                "status"
+              ]
+            },
+            {
+              "variable": "monitoring_metrics",
+              "value_selector": [
+                "monitoring_check",
+                "metrics"
+              ]
+            },
+            {
+              "variable": "rollback_status",
+              "value_selector": [
+                "k8s_rollback",
+                "status"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "report_generator",
+        "type": "code",
+        "title": "生成最终报告",
+        "config": {
+          "language": "python",
+          "script": "import json\n\ndef main(input_data):\n    quality_status = input_data.get('quality_status', 'UNKNOWN')\n    new_image_tag = input_data.get('new_image_tag', 'N/A')\n    deployment_status = input_data.get('deployment_status', 'UNKNOWN')\n    monitoring_metrics = input_data.get('monitoring_metrics', {})\n    rollback_status = input_data.get('rollback_status', 'N/A')\n    \n    error_rate = monitoring_metrics.get('error_rate', 0)\n    latency = monitoring_metrics.get('latency', 0)\n    \n    final_status = '成功'\n    if deployment_status == 'FAILED':\n        final_status = '失败'\n    elif rollback_status == 'SUCCESS':\n        final_status = '已回滚'\n    \n    report = f\"# CI/CD 部署报告\\n\\n\"\n    report += f\"## 构建状态\\n- 代码质量检查: {quality_status}\\n\"\n    report += f\"- Docker镜像标签: {new_image_tag}\\n\"\n    report += f\"\\n## 发布状态\\n- 部署状态: {deployment_status}\\n\"\n    report += f\"- 最终状态: {final_status}\\n\"\n    report += f\"\\n## 监控指标\\n- 错误率: {error_rate:.2%}\\n\"\n    report += f\"- 延迟: {latency}ms\\n\"\n    report += f\"\\n## 回滚状态\\n- 回滚操作: {rollback_status}\\n\"\n    \n    return {\n        'final_report': report,\n        'pipeline_log_url': 'https://logs.example.com/pipeline-12345',\n        'deployment_status': final_status,\n        'new_image_tag': new_image_tag\n    }\n\nresult = main(input)",
+          "example_key": "format_markdown",
+          "variables": [
+            {
+              "variable": "input",
+              "value_selector": [
+                "aggregator",
+                "aggregated_data"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "notification",
+        "type": "tool",
+        "title": "发送通知",
+        "config": {
+          "method": "post",
+          "url": "https://httpbin.org/get",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "msgtype": "markdown",
+            "markdown": {
+              "content": "{{final_report}}"
+            }
+          },
+          "variables": [
+            {
+              "variable": "final_report",
+              "value_selector": [
+                "report_generator",
+                "final_report"
+              ]
+            },
+            {
+              "variable": "wechat_webhook_url",
+              "value_selector": [
+                "start",
+                "wechat_webhook_url"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "answer",
+        "type": "answer",
+        "title": "完成"
+      }
+    ],
+    "edges": [
+      {
+        "source": "aggregator",
+        "target": "report_generator"
+      },
+      {
+        "source": "code_quality_check",
+        "target": "quality_gate"
+      },
+      {
+        "source": "docker_build_push",
+        "target": "aggregator"
+      },
+      {
+        "source": "docker_build_push",
+        "target": "k8s_deploy"
+      },
+      {
+        "source": "k8s_deploy",
+        "target": "monitoring_check"
+      },
+      {
+        "source": "k8s_rollback",
+        "target": "aggregator"
+      },
+      {
+        "source": "monitoring_check",
+        "target": "rollback_decision"
+      },
+      {
+        "source": "notification",
+        "target": "answer"
+      },
+      {
+        "source": "quality_gate",
+        "target": "aggregator",
+        "branch": "fail"
+      },
+      {
+        "source": "quality_gate",
+        "target": "docker_build_push",
+        "branch": "pass"
+      },
+      {
+        "source": "report_generator",
+        "target": "notification"
+      },
+      {
+        "source": "rollback_decision",
+        "target": "aggregator",
+        "branch": "healthy"
+      },
+      {
+        "source": "rollback_decision",
+        "target": "k8s_rollback",
+        "branch": "unhealthy"
+      },
+      {
+        "source": "start",
+        "target": "code_quality_check"
+      }
+    ],
+    "meta": {
+      "allow_autofix_ifelse": false,
+      "allow_autowrap_fail_branch": false,
+      "max_fail_branch_nodes": 2,
+      "autofix_warnings": 1,
+      "planning_mode": "llm_v2",
+      "model": "deepseek-chat",
+      "provider": "deepseek",
+      "prompt_version": "v2.1",
+      "schema_version": "wf-spec.v2",
+      "score": 89.1,
+      "selected_candidate_id": "cand_1",
+      "complexity_level": "complex",
+      "candidate_count": 3
+    },
+    "requirement_meta": {
+      "app_name": "CI/CD 自动化部署流水线",
+      "description": "一个由代码推送事件自动触发的八节点CI/CD工作流，涵盖代码质量分析、Docker镜像构建、Kubernetes灰度发布、实时监控与自动回滚，最终发送通知并归档日志。",
+      "scene": "generic",
+      "user_goal": "实现一个自动化、可靠且具备质量门禁和自动回滚能力的CI/CD部署流程，从代码提交到生产环境发布，无需人工干预。",
+      "inputs": [
+        {
+          "name": "repository_url",
+          "label": "代码仓库地址",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "branch",
+          "label": "触发分支",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "sonar_project_key",
+          "label": "SonarQube项目Key",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "dockerfile_path",
+          "label": "Dockerfile路径",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "k8s_manifest",
+          "label": "Kubernetes部署清单",
+          "type": "paragraph",
+          "required": true
+        },
+        {
+          "name": "wechat_webhook_url",
+          "label": "企业微信群机器人Webhook地址",
+          "type": "text",
+          "required": true
+        }
+      ],
+      "output_contract": {
+        "final_report": "包含构建状态、质量门禁结果、发布版本、监控指标（错误率、延迟）和最终发布结果的Markdown格式报告。",
+        "pipeline_log_url": "归档后的流水线执行日志的存储地址或标识符。",
+        "deployment_status": "最终部署状态：成功、失败（含原因）、或已回滚。",
+        "new_image_tag": "构建并推送成功的Docker镜像标签。"
+      },
+      "capabilities": [
+        "intent_analysis",
+        "planning",
+        "tool_call",
+        "branching",
+        "generation",
+        "formatting"
+      ],
+      "node_preferences": {
+        "target_node_count": 8,
+        "need_private_kb": false,
+        "need_code_node": true,
+        "need_tools": true,
+        "need_branching": true
+      },
+      "runtime_config": {
+        "max_execution_time": "30m",
+        "retry_on_failure": true,
+        "concurrent_execution": false,
+        "model_tier": "deepseek-chat",
+        "allow_autofix_ifelse": false,
+        "allow_autowrap_fail_branch": false,
+        "max_fail_branch_nodes": 2
+      },
+      "constraints": []
+    }
+  }
+}

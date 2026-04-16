@@ -3839,7 +3839,13 @@ def _resolve_code_config(step: dict, inputs: list, step_type_map: dict) -> dict:
     first_input_name = inputs[0]["name"] if inputs else "user_request"
     example_key = config.get("example_key", "")
     user_script = config.get("script", "")
-    code_language = str(config.get("language", "python3")).strip() or "python3"
+    code_language = str(config.get("language", "python3")).strip().lower() or "python3"
+    if code_language in {"python", "py"}:
+        code_language = "python3"
+    elif code_language in {"javascript", "js"}:
+        code_language = "javascript"
+    elif code_language not in {"python3", "javascript"}:
+        code_language = "python3"
 
     code = ""
     if isinstance(user_script, str) and user_script.strip():

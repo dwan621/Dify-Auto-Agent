@@ -1,0 +1,379 @@
+{
+  "timestamp": "2026-04-16T09:27:48.733636",
+  "model_name": "deepseek-chat",
+  "provider": "deepseek",
+  "prompt_version": "v2.1",
+  "schema_version": "wf-spec.v2",
+  "requirement": {
+    "app_name": "多源异构数据同步与清洗工作流",
+    "description": "一个八节点中等复杂工作流，用于监听上游业务系统数据变更，并发采集MySQL和RESTful API的增量数据，经过格式化、去重、关联、路由等清洗转换后，批量写入ClickHouse集群，并处理失败记录、更新元数据与上报监控指标。",
+    "scene": "generic",
+    "user_goal": "自动化、可靠地完成从多源异构数据（MySQL, REST API）到目标数据仓库（ClickHouse）的增量数据同步、清洗与入库，并保障可观测性与失败处理机制。",
+    "inputs": [
+      {
+        "name": "upstream_change_event",
+        "label": "上游变更监听事件",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "mysql_connection_config",
+        "label": "MySQL连接与增量查询配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "api_endpoint_config",
+        "label": "RESTful API端点与认证配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "internal_schema_definition",
+        "label": "内部通用Schema定义",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "dimension_table_mappings",
+        "label": "维表关联映射规则",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "routing_rules_by_tenant",
+        "label": "基于租户ID的分库分表路由规则",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "clickhouse_cluster_config",
+        "label": "目标ClickHouse集群配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "failure_threshold_config",
+        "label": "写入失败阈值与死信队列配置",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "output_contract": {
+      "data_sync_report": "本次数据同步的摘要报告，包含成功/失败记录数、目标表、同步时间窗口等信息。",
+      "metadata_update_confirmation": "元数据（数据血缘、同步位点）更新成功的确认信息。",
+      "metrics_push_confirmation": "延迟与吞吐量指标推送至Prometheus的确认信息。",
+      "dead_letter_records_location": "（如果存在失败）存储在S3的死信记录文件路径。"
+    },
+    "capabilities": [
+      "intent_analysis",
+      "planning",
+      "retrieval",
+      "code_execution",
+      "tool_call",
+      "branching",
+      "generation",
+      "optimization",
+      "formatting"
+    ],
+    "node_preferences": {
+      "target_node_count": 8,
+      "need_private_kb": false,
+      "need_code_node": true,
+      "need_tools": true,
+      "need_branching": true
+    },
+    "runtime_config": {
+      "execution_engine": "concurrent_for_data_fetching",
+      "error_handling": "dead_letter_queue_with_retry",
+      "state_persistence": "required_for_checkpoints",
+      "external_service_deps": [
+        "mysql",
+        "rest_api",
+        "clickhouse",
+        "s3",
+        "prometheus"
+      ],
+      "model_tier": "deepseek-chat",
+      "allow_autofix_ifelse": false,
+      "allow_autowrap_fail_branch": false,
+      "max_fail_branch_nodes": 2
+    },
+    "constraints": []
+  },
+  "candidate_scores": [
+    {
+      "id": "cand_1",
+      "score": 55.9,
+      "ok": true,
+      "warnings": [
+        "补充 answer 节点",
+        "原始 edges 为空，已按节点顺序自动连边"
+      ],
+      "stats": {
+        "total_nodes": 3,
+        "type_counts": {
+          "start": 1,
+          "code": 1,
+          "answer": 1
+        },
+        "non_llm_node_ratio": 1.0,
+        "has_path_start_to_answer": true
+      },
+      "repair_rounds": 0
+    }
+  ],
+  "selected_candidate_id": "cand_1",
+  "selected_spec": {
+    "workflow_name": "多源异构数据同步与清洗工作流",
+    "description": "监听上游变更事件，并发采集MySQL和REST API增量数据，经过格式化、去重、关联、路由等清洗转换后，批量写入ClickHouse集群，处理失败记录并更新元数据与监控指标。",
+    "scene": "generic",
+    "inputs": [
+      {
+        "name": "upstream_change_event",
+        "label": "上游变更监听事件",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "mysql_connection_config",
+        "label": "MySQL连接与增量查询配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "api_endpoint_config",
+        "label": "RESTful API端点与认证配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "internal_schema_definition",
+        "label": "内部通用Schema定义",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "dimension_table_mappings",
+        "label": "维表关联映射规则",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "routing_rules_by_tenant",
+        "label": "基于租户ID的分库分表路由规则",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "clickhouse_cluster_config",
+        "label": "目标ClickHouse集群配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "failure_threshold_config",
+        "label": "写入失败阈值与死信队列配置",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "output_contract": {
+      "data_sync_report": "本次数据同步的摘要报告，包含成功/失败记录数、目标表、同步时间窗口等信息。",
+      "metadata_update_confirmation": "元数据（数据血缘、同步位点）更新成功的确认信息。",
+      "metrics_push_confirmation": "延迟与吞吐量指标推送至Prometheus的确认信息。",
+      "dead_letter_records_location": "（如果存在失败）存储在S3的死信记录文件路径。"
+    },
+    "steps": [
+      {
+        "id": "start",
+        "type": "start",
+        "title": "开始"
+      },
+      {
+        "id": "parse_event",
+        "type": "code",
+        "title": "解析上游事件",
+        "config": {
+          "language": "python",
+          "script": "import json\n\ndef main(input_data):\n    event = json.loads(input_data)\n    # 提取增量查询参数\n    mysql_params = {\n        'last_id': event.get('last_mysql_id'",
+          "batch_size": "event.get('batch_size', 1000)\n    }\n    api_params = {\n        'since': event.get('last_api_timestamp')",
+          "page": 1,
+          "page_size": 500
+        },
+        "mysql_query_params": "mysql_params",
+        "api_query_params": "api_params",
+        "tenant_id": "event.get('tenant_id')\n    }",
+        "example_key": "parse_json",
+        "variables": [
+          {
+            "variable": "input",
+            "value_selector": [
+              "start",
+              "upstream_change_event"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "answer",
+        "type": "answer",
+        "title": "直接回复"
+      }
+    ],
+    "id": "fetch_mysql_data",
+    "type": "tool",
+    "title": "采集MySQL增量数据",
+    "config": {
+      "method": "POST",
+      "url": "httpbin.org",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "action": "query_mysql",
+        "config": "{{mysql_connection_config}}",
+        "params": "{{mysql_query_params}}"
+      },
+      "variables": [
+        {
+          "variable": "mysql_connection_config",
+          "value_selector": [
+            "start",
+            "mysql_connection_config"
+          ]
+        },
+        {
+          "variable": "mysql_query_params",
+          "value_selector": [
+            "parse_event",
+            "output",
+            "mysql_query_params"
+          ]
+        }
+      ]
+    },
+    "edges": [
+      {
+        "source": "parse_event",
+        "target": "answer"
+      },
+      {
+        "source": "start",
+        "target": "parse_event"
+      }
+    ],
+    "meta": {
+      "allow_autofix_ifelse": false,
+      "allow_autowrap_fail_branch": false,
+      "max_fail_branch_nodes": 2,
+      "autofix_warnings": 0,
+      "planning_mode": "llm_v2",
+      "model": "deepseek-chat",
+      "provider": "deepseek",
+      "prompt_version": "v2.1",
+      "schema_version": "wf-spec.v2",
+      "score": 55.9,
+      "selected_candidate_id": "cand_1",
+      "complexity_level": "complex",
+      "candidate_count": 3
+    },
+    "requirement_meta": {
+      "app_name": "多源异构数据同步与清洗工作流",
+      "description": "一个八节点中等复杂工作流，用于监听上游业务系统数据变更，并发采集MySQL和RESTful API的增量数据，经过格式化、去重、关联、路由等清洗转换后，批量写入ClickHouse集群，并处理失败记录、更新元数据与上报监控指标。",
+      "scene": "generic",
+      "user_goal": "自动化、可靠地完成从多源异构数据（MySQL, REST API）到目标数据仓库（ClickHouse）的增量数据同步、清洗与入库，并保障可观测性与失败处理机制。",
+      "inputs": [
+        {
+          "name": "upstream_change_event",
+          "label": "上游变更监听事件",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "mysql_connection_config",
+          "label": "MySQL连接与增量查询配置",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "api_endpoint_config",
+          "label": "RESTful API端点与认证配置",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "internal_schema_definition",
+          "label": "内部通用Schema定义",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "dimension_table_mappings",
+          "label": "维表关联映射规则",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "routing_rules_by_tenant",
+          "label": "基于租户ID的分库分表路由规则",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "clickhouse_cluster_config",
+          "label": "目标ClickHouse集群配置",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "failure_threshold_config",
+          "label": "写入失败阈值与死信队列配置",
+          "type": "text",
+          "required": false
+        }
+      ],
+      "output_contract": {
+        "data_sync_report": "本次数据同步的摘要报告，包含成功/失败记录数、目标表、同步时间窗口等信息。",
+        "metadata_update_confirmation": "元数据（数据血缘、同步位点）更新成功的确认信息。",
+        "metrics_push_confirmation": "延迟与吞吐量指标推送至Prometheus的确认信息。",
+        "dead_letter_records_location": "（如果存在失败）存储在S3的死信记录文件路径。"
+      },
+      "capabilities": [
+        "intent_analysis",
+        "planning",
+        "retrieval",
+        "code_execution",
+        "tool_call",
+        "branching",
+        "generation",
+        "optimization",
+        "formatting"
+      ],
+      "node_preferences": {
+        "target_node_count": 8,
+        "need_private_kb": false,
+        "need_code_node": true,
+        "need_tools": true,
+        "need_branching": true
+      },
+      "runtime_config": {
+        "execution_engine": "concurrent_for_data_fetching",
+        "error_handling": "dead_letter_queue_with_retry",
+        "state_persistence": "required_for_checkpoints",
+        "external_service_deps": [
+          "mysql",
+          "rest_api",
+          "clickhouse",
+          "s3",
+          "prometheus"
+        ],
+        "model_tier": "deepseek-chat",
+        "allow_autofix_ifelse": false,
+        "allow_autowrap_fail_branch": false,
+        "max_fail_branch_nodes": 2
+      },
+      "constraints": []
+    }
+  }
+}

@@ -269,6 +269,27 @@ def test_compile_llm_uses_config_prompt_and_converts_placeholders():
     assert "{{#start.user_request#}}" in text
 
 
+def test_compile_code_coerces_python_to_python3():
+    spec = {
+        "workflow_name": "code language",
+        "scene": "generic",
+        "inputs": [{"name": "user_request", "label": "输入", "type": "paragraph", "required": True}],
+        "steps": [
+            {"id": "start", "type": "start"},
+            {"id": "code_1", "type": "code", "config": {"language": "python", "example_key": "clean_text"}},
+            {"id": "answer", "type": "answer"},
+        ],
+        "edges": [
+            {"source": "start", "target": "code_1"},
+            {"source": "code_1", "target": "answer"},
+        ],
+    }
+    yaml_content = auto_app.compile_workflow_spec_to_dify_yaml(spec)
+    parsed = yaml.safe_load(yaml_content)
+    code_node = next(node for node in parsed["workflow"]["graph"]["nodes"] if node["id"] == "code_1")
+    assert code_node["data"]["code_language"] == "python3"
+
+
 def test_compile_ifelse_adds_cases_for_outgoing_branches():
     spec = {
         "workflow_name": "ifelse",

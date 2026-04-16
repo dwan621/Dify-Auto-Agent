@@ -1,0 +1,827 @@
+{
+  "timestamp": "2026-04-16T09:51:08.242513",
+  "model_name": "deepseek-chat",
+  "provider": "deepseek",
+  "prompt_version": "v2.1",
+  "schema_version": "wf-spec.v2",
+  "requirement": {
+    "app_name": "自动化数据处理工作流",
+    "description": "一个包含输入校验和风险判断分支的自动化数据处理工作流，用于处理FTP文件下载、数据清洗、补全、入库，并根据风险级别生成不同摘要。",
+    "scene": "generic",
+    "user_goal": "自动化完成从FTP下载数据、清洗、补全、入库到生成摘要的全流程，并根据输入有效性和处理风险进行智能分支处理。",
+    "inputs": [
+      {
+        "name": "ftp_config",
+        "label": "FTP配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "db_connection",
+        "label": "数据库连接字符串",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "api_key",
+        "label": "API密钥",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "monitoring_platform_url",
+        "label": "监控平台URL",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "alert_recipients",
+        "label": "告警接收人",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "output_contract": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "description": "处理状态：success, error, high_risk_alert"
+        },
+        "message": {
+          "type": "string",
+          "description": "处理结果或错误信息"
+        },
+        "summary": {
+          "type": "string",
+          "description": "数据处理摘要"
+        },
+        "processed_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "处理的文件列表"
+        },
+        "records_processed": {
+          "type": "integer",
+          "description": "处理的记录数"
+        }
+      }
+    },
+    "capabilities": [
+      "input_check",
+      "intent_analysis",
+      "planning",
+      "retrieval",
+      "code_execution",
+      "tool_call",
+      "branching",
+      "generation",
+      "optimization",
+      "formatting"
+    ],
+    "node_preferences": {
+      "target_node_count": 12,
+      "need_private_kb": false,
+      "need_code_node": true,
+      "need_tools": true,
+      "need_branching": true
+    },
+    "runtime_config": {
+      "max_execution_time": 300,
+      "retry_count": 2,
+      "timeout": 60,
+      "concurrent_limit": 1,
+      "model_tier": "deepseek-chat",
+      "allow_autofix_ifelse": false,
+      "allow_autowrap_fail_branch": false,
+      "max_fail_branch_nodes": 2
+    },
+    "constraints": [
+      "必须包含ifelse_input_check和ifelse_risk两个分支节点",
+      "每个ifelse节点的每个case必须有且仅有一条对应的出边",
+      "禁止出现branch=direct或无branch的出边",
+      "工作流图必须连通，从start到answer可达"
+    ]
+  },
+  "candidate_scores": [
+    {
+      "id": "cand_1",
+      "score": 98.171,
+      "ok": true,
+      "warnings": [
+        "存在多个 answer 节点",
+        "工具节点 ftp_download url 已重写为白名单地址",
+        "工具节点 database_insert url 已重写为白名单地址",
+        "工具节点 database_insert headers 含敏感字段，已清空",
+        "工具节点 send_alert url 已重写为白名单地址"
+      ],
+      "stats": {
+        "total_nodes": 14,
+        "type_counts": {
+          "start": 1,
+          "code": 3,
+          "ifelse": 2,
+          "answer": 2,
+          "tool": 3,
+          "llm": 2,
+          "variable_aggregator": 1
+        },
+        "non_llm_node_ratio": 0.8571,
+        "has_path_start_to_answer": true
+      },
+      "repair_rounds": 0
+    }
+  ],
+  "selected_candidate_id": "cand_1",
+  "selected_spec": {
+    "workflow_name": "自动化数据处理工作流",
+    "description": "一个包含输入校验和风险判断分支的自动化数据处理工作流，用于处理FTP文件下载、数据清洗、补全、入库，并根据风险级别生成不同摘要。",
+    "scene": "generic",
+    "inputs": [
+      {
+        "name": "ftp_config",
+        "label": "FTP配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "db_connection",
+        "label": "数据库连接字符串",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "api_key",
+        "label": "API密钥",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "monitoring_platform_url",
+        "label": "监控平台URL",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "alert_recipients",
+        "label": "告警接收人",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "output_contract": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "description": "处理状态：success, error, high_risk_alert"
+        },
+        "message": {
+          "type": "string",
+          "description": "处理结果或错误信息"
+        },
+        "summary": {
+          "type": "string",
+          "description": "数据处理摘要"
+        },
+        "processed_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "处理的文件列表"
+        },
+        "records_processed": {
+          "type": "integer",
+          "description": "处理的记录数"
+        }
+      }
+    },
+    "steps": [
+      {
+        "id": "start",
+        "type": "start",
+        "title": "开始"
+      },
+      {
+        "id": "input_check",
+        "type": "code",
+        "title": "输入校验",
+        "config": {
+          "language": "python",
+          "script": "def validate_inputs(ftp_config, db_connection, api_key, monitoring_platform_url, alert_recipients):\n    errors = []\n    if not ftp_config or 'host' not in ftp_config:\n        errors.append('FTP配置无效')\n    if not db_connection or '://' not in db_connection:\n        errors.append('数据库连接字符串无效')\n    if not api_key or len(api_key) < 10:\n        errors.append('API密钥无效')\n    if not monitoring_platform_url or not monitoring_platform_url.startswith('http'):\n        errors.append('监控平台URL无效')\n    \n    is_valid = len(errors) == 0\n    return {\n        'is_valid': is_valid,\n        'errors': errors,\n        'has_alert_recipients': bool(alert_recipients and alert_recipients.strip())\n    }",
+          "variables": [
+            {
+              "variable": "ftp_config",
+              "value_selector": [
+                "start",
+                "ftp_config"
+              ]
+            },
+            {
+              "variable": "db_connection",
+              "value_selector": [
+                "start",
+                "db_connection"
+              ]
+            },
+            {
+              "variable": "api_key",
+              "value_selector": [
+                "start",
+                "api_key"
+              ]
+            },
+            {
+              "variable": "monitoring_platform_url",
+              "value_selector": [
+                "start",
+                "monitoring_platform_url"
+              ]
+            },
+            {
+              "variable": "alert_recipients",
+              "value_selector": [
+                "start",
+                "alert_recipients"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "ifelse_input_check",
+        "type": "ifelse",
+        "title": "输入校验分支",
+        "config": {
+          "cases": [
+            {
+              "id": "valid_input",
+              "logical_operator": "and",
+              "conditions": [
+                {
+                  "variable": "input_check.is_valid",
+                  "operator": "==",
+                  "value": true
+                }
+              ]
+            },
+            {
+              "id": "invalid_input",
+              "logical_operator": "and",
+              "conditions": [
+                {
+                  "variable": "input_check.is_valid",
+                  "operator": "==",
+                  "value": false
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "error_response",
+        "type": "answer",
+        "title": "输入错误响应",
+        "config": {
+          "variables": [
+            {
+              "variable": "errors",
+              "value_selector": [
+                "input_check",
+                "errors"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "ftp_download",
+        "type": "tool",
+        "title": "FTP文件下载",
+        "config": {
+          "method": "post",
+          "url": "https://httpbin.org/get",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "action": "download_files",
+            "ftp_config": "{{ftp_config}}"
+          },
+          "variables": [
+            {
+              "variable": "ftp_config",
+              "value_selector": [
+                "start",
+                "ftp_config"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "data_cleaning",
+        "type": "code",
+        "title": "数据清洗",
+        "config": {
+          "language": "python",
+          "script": "def clean_data(download_result):\n    # 模拟数据清洗过程\n    files = download_result.get('files', [])\n    cleaned_data = []\n    processed_files = []\n    \n    for file in files:\n        # 清洗逻辑\n        cleaned_data.append({\n            'file': file,\n            'status': 'cleaned',\n            'records': 100\n        })\n        processed_files.append(file)\n    \n    return {\n        'cleaned_data': cleaned_data,\n        'processed_files': processed_files,\n        'total_records': len(cleaned_data) * 100\n    }",
+          "example_key": "clean_text",
+          "variables": [
+            {
+              "variable": "download_result",
+              "value_selector": [
+                "ftp_download",
+                "response"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "data_completion",
+        "type": "llm",
+        "title": "数据补全",
+        "config": {
+          "prompt": "请对以下清洗后的数据进行智能补全，填充缺失字段，确保数据完整性：\n{{data_cleaning.cleaned_data}}\n\n要求：\n1. 保持数据结构一致\n2. 补充合理的默认值\n3. 标记补全的记录",
+          "variables": [
+            {
+              "variable": "data_cleaning.cleaned_data",
+              "value_selector": [
+                "data_cleaning",
+                "cleaned_data"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "database_insert",
+        "type": "tool",
+        "title": "数据入库",
+        "config": {
+          "method": "post",
+          "url": "https://httpbin.org/get",
+          "headers": "",
+          "body": {
+            "action": "insert_records",
+            "db_connection": "{{db_connection}}",
+            "data": "{{data_completion.completion}}"
+          },
+          "variables": [
+            {
+              "variable": "db_connection",
+              "value_selector": [
+                "start",
+                "db_connection"
+              ]
+            },
+            {
+              "variable": "api_key",
+              "value_selector": [
+                "start",
+                "api_key"
+              ]
+            },
+            {
+              "variable": "data_completion.completion",
+              "value_selector": [
+                "data_completion",
+                "completion"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "risk_assessment",
+        "type": "code",
+        "title": "风险评估",
+        "config": {
+          "language": "python",
+          "script": "def assess_risk(insert_result, processed_files, total_records):\n    # 基于入库结果和数据处理量评估风险\n    success_count = insert_result.get('success_count', 0)\n    error_count = insert_result.get('error_count', 0)\n    \n    risk_level = 'low'\n    if error_count > 10:\n        risk_level = 'high'\n    elif error_count > 0:\n        risk_level = 'medium'\n    \n    # 处理大量数据时风险增加\n    if total_records > 10000:\n        if risk_level == 'low':\n            risk_level = 'medium'\n        elif risk_level == 'medium':\n            risk_level = 'high'\n    \n    return {\n        'risk_level': risk_level,\n        'success_count': success_count,\n        'error_count': error_count,\n        'requires_alert': risk_level in ['high', 'medium']\n    }",
+          "variables": [
+            {
+              "variable": "insert_result",
+              "value_selector": [
+                "database_insert",
+                "response"
+              ]
+            },
+            {
+              "variable": "processed_files",
+              "value_selector": [
+                "data_cleaning",
+                "processed_files"
+              ]
+            },
+            {
+              "variable": "total_records",
+              "value_selector": [
+                "data_cleaning",
+                "total_records"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "ifelse_risk",
+        "type": "ifelse",
+        "title": "风险分支判断",
+        "config": {
+          "cases": [
+            {
+              "id": "high_risk",
+              "logical_operator": "and",
+              "conditions": [
+                {
+                  "variable": "risk_assessment.risk_level",
+                  "operator": "==",
+                  "value": "high"
+                }
+              ]
+            },
+            {
+              "id": "medium_risk",
+              "logical_operator": "and",
+              "conditions": [
+                {
+                  "variable": "risk_assessment.risk_level",
+                  "operator": "==",
+                  "value": "medium"
+                }
+              ]
+            },
+            {
+              "id": "low_risk",
+              "logical_operator": "and",
+              "conditions": [
+                {
+                  "variable": "risk_assessment.risk_level",
+                  "operator": "==",
+                  "value": "low"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "send_alert",
+        "type": "tool",
+        "title": "发送告警",
+        "config": {
+          "method": "post",
+          "url": "https://httpbin.org/get",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "action": "send_alert",
+            "platform_url": "{{monitoring_platform_url}}",
+            "recipients": "{{alert_recipients}}",
+            "message": "数据处理发现高风险问题，请立即检查！",
+            "risk_level": "{{risk_assessment.risk_level}}"
+          },
+          "variables": [
+            {
+              "variable": "monitoring_platform_url",
+              "value_selector": [
+                "start",
+                "monitoring_platform_url"
+              ]
+            },
+            {
+              "variable": "alert_recipients",
+              "value_selector": [
+                "start",
+                "alert_recipients"
+              ]
+            },
+            {
+              "variable": "risk_assessment.risk_level",
+              "value_selector": [
+                "risk_assessment",
+                "risk_level"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "summary_aggregator",
+        "type": "variable_aggregator",
+        "title": "摘要聚合",
+        "config": {
+          "variables": [
+            {
+              "variable": "processed_files",
+              "value_selector": [
+                "data_cleaning",
+                "processed_files"
+              ]
+            },
+            {
+              "variable": "records_processed",
+              "value_selector": [
+                "data_cleaning",
+                "total_records"
+              ]
+            },
+            {
+              "variable": "risk_level",
+              "value_selector": [
+                "risk_assessment",
+                "risk_level"
+              ]
+            },
+            {
+              "variable": "success_count",
+              "value_selector": [
+                "risk_assessment",
+                "success_count"
+              ]
+            },
+            {
+              "variable": "error_count",
+              "value_selector": [
+                "risk_assessment",
+                "error_count"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "generate_summary",
+        "type": "llm",
+        "title": "生成摘要",
+        "config": {
+          "prompt": "根据以下处理结果生成数据处理摘要：\n\n处理文件：{{summary_aggregator.processed_files}}\n处理记录数：{{summary_aggregator.records_processed}}\n风险级别：{{summary_aggregator.risk_level}}\n成功记录：{{summary_aggregator.success_count}}\n失败记录：{{summary_aggregator.error_count}}\n\n请生成简洁明了的数据处理摘要报告。",
+          "variables": [
+            {
+              "variable": "summary_aggregator.processed_files",
+              "value_selector": [
+                "summary_aggregator",
+                "processed_files"
+              ]
+            },
+            {
+              "variable": "summary_aggregator.records_processed",
+              "value_selector": [
+                "summary_aggregator",
+                "records_processed"
+              ]
+            },
+            {
+              "variable": "summary_aggregator.risk_level",
+              "value_selector": [
+                "summary_aggregator",
+                "risk_level"
+              ]
+            },
+            {
+              "variable": "summary_aggregator.success_count",
+              "value_selector": [
+                "summary_aggregator",
+                "success_count"
+              ]
+            },
+            {
+              "variable": "summary_aggregator.error_count",
+              "value_selector": [
+                "summary_aggregator",
+                "error_count"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "final_answer",
+        "type": "answer",
+        "title": "最终响应",
+        "config": {
+          "variables": [
+            {
+              "variable": "status",
+              "value_selector": [
+                "risk_assessment",
+                "risk_level"
+              ]
+            },
+            {
+              "variable": "summary",
+              "value_selector": [
+                "generate_summary",
+                "completion"
+              ]
+            },
+            {
+              "variable": "processed_files",
+              "value_selector": [
+                "data_cleaning",
+                "processed_files"
+              ]
+            },
+            {
+              "variable": "records_processed",
+              "value_selector": [
+                "data_cleaning",
+                "total_records"
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "data_cleaning",
+        "target": "data_completion"
+      },
+      {
+        "source": "data_completion",
+        "target": "database_insert"
+      },
+      {
+        "source": "database_insert",
+        "target": "risk_assessment"
+      },
+      {
+        "source": "ftp_download",
+        "target": "data_cleaning"
+      },
+      {
+        "source": "generate_summary",
+        "target": "final_answer"
+      },
+      {
+        "source": "ifelse_input_check",
+        "target": "error_response",
+        "branch": "invalid_input"
+      },
+      {
+        "source": "ifelse_input_check",
+        "target": "ftp_download",
+        "branch": "valid_input"
+      },
+      {
+        "source": "ifelse_risk",
+        "target": "send_alert",
+        "branch": "high_risk"
+      },
+      {
+        "source": "ifelse_risk",
+        "target": "send_alert",
+        "branch": "medium_risk"
+      },
+      {
+        "source": "ifelse_risk",
+        "target": "summary_aggregator",
+        "branch": "low_risk"
+      },
+      {
+        "source": "input_check",
+        "target": "ifelse_input_check"
+      },
+      {
+        "source": "risk_assessment",
+        "target": "ifelse_risk"
+      },
+      {
+        "source": "send_alert",
+        "target": "summary_aggregator"
+      },
+      {
+        "source": "start",
+        "target": "input_check"
+      },
+      {
+        "source": "summary_aggregator",
+        "target": "generate_summary"
+      }
+    ],
+    "meta": {
+      "allow_autofix_ifelse": false,
+      "allow_autowrap_fail_branch": false,
+      "max_fail_branch_nodes": 2,
+      "autofix_warnings": 0,
+      "planning_mode": "llm_v2",
+      "model": "deepseek-chat",
+      "provider": "deepseek",
+      "prompt_version": "v2.1",
+      "schema_version": "wf-spec.v2",
+      "score": 98.171,
+      "selected_candidate_id": "cand_1",
+      "complexity_level": "complex",
+      "candidate_count": 3
+    },
+    "requirement_meta": {
+      "app_name": "自动化数据处理工作流",
+      "description": "一个包含输入校验和风险判断分支的自动化数据处理工作流，用于处理FTP文件下载、数据清洗、补全、入库，并根据风险级别生成不同摘要。",
+      "scene": "generic",
+      "user_goal": "自动化完成从FTP下载数据、清洗、补全、入库到生成摘要的全流程，并根据输入有效性和处理风险进行智能分支处理。",
+      "inputs": [
+        {
+          "name": "ftp_config",
+          "label": "FTP配置",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "db_connection",
+          "label": "数据库连接字符串",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "api_key",
+          "label": "API密钥",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "monitoring_platform_url",
+          "label": "监控平台URL",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "alert_recipients",
+          "label": "告警接收人",
+          "type": "text",
+          "required": false
+        }
+      ],
+      "output_contract": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "处理状态：success, error, high_risk_alert"
+          },
+          "message": {
+            "type": "string",
+            "description": "处理结果或错误信息"
+          },
+          "summary": {
+            "type": "string",
+            "description": "数据处理摘要"
+          },
+          "processed_files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "处理的文件列表"
+          },
+          "records_processed": {
+            "type": "integer",
+            "description": "处理的记录数"
+          }
+        }
+      },
+      "capabilities": [
+        "input_check",
+        "intent_analysis",
+        "planning",
+        "retrieval",
+        "code_execution",
+        "tool_call",
+        "branching",
+        "generation",
+        "optimization",
+        "formatting"
+      ],
+      "node_preferences": {
+        "target_node_count": 12,
+        "need_private_kb": false,
+        "need_code_node": true,
+        "need_tools": true,
+        "need_branching": true
+      },
+      "runtime_config": {
+        "max_execution_time": 300,
+        "retry_count": 2,
+        "timeout": 60,
+        "concurrent_limit": 1,
+        "model_tier": "deepseek-chat",
+        "allow_autofix_ifelse": false,
+        "allow_autowrap_fail_branch": false,
+        "max_fail_branch_nodes": 2
+      },
+      "constraints": [
+        "必须包含ifelse_input_check和ifelse_risk两个分支节点",
+        "每个ifelse节点的每个case必须有且仅有一条对应的出边",
+        "禁止出现branch=direct或无branch的出边",
+        "工作流图必须连通，从start到answer可达"
+      ]
+    }
+  }
+}

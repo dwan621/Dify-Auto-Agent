@@ -1,0 +1,703 @@
+app:
+  description: 监听上游业务系统数据变更，并发采集MySQL和RESTful API的增量数据，经过格式化、去重、关联、路由等清洗步骤后，批量写入ClickHouse集群，并处理异常、更新元数据和上报监控指标。
+  icon: 🤖
+  icon_background: '#FFEAD5'
+  mode: advanced-chat
+  name: 多源异构数据同步与清洗工作流
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/deepseek:0.0.11@35bcd3f233f99d07bdadef8b326945df3bda5e8f773330144bc90d84800336b9
+    version: null
+kind: app
+version: 0.6.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: false
+      fileUploadConfig:
+        attachment_image_file_size_limit: 2
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        file_upload_limit: 20
+        image_file_batch_limit: 10
+        image_file_size_limit: 10
+        single_chunk_attachment_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: code
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: code_clean_transform-source-code_route_batch-target
+      source: code_clean_transform
+      sourceHandle: source
+      target: code_route_batch
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: code_handle_failure-source-variable_aggregator_2-target
+      source: code_handle_failure
+      sourceHandle: source
+      target: variable_aggregator_2
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: code_route_batch-source-code_handle_failure-target
+      source: code_route_batch
+      sourceHandle: source
+      target: code_handle_failure
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: code_route_batch-source-variable_aggregator_2-target
+      source: code_route_batch
+      sourceHandle: source
+      target: variable_aggregator_2
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: ifelse_route-api_only-variable_aggregator_1-target
+      source: ifelse_route
+      sourceHandle: api_only
+      target: variable_aggregator_1
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: ifelse_route-both-variable_aggregator_1-target
+      source: ifelse_route
+      sourceHandle: both
+      target: variable_aggregator_1
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: ifelse_route-mysql_only-variable_aggregator_1-target
+      source: ifelse_route
+      sourceHandle: mysql_only
+      target: variable_aggregator_1
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: answer
+        isInIteration: false
+        isInLoop: false
+      id: llm_generate_report-source-answer-target
+      source: llm_generate_report
+      sourceHandle: source
+      target: answer
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: if-else
+        isInIteration: false
+        isInLoop: false
+      id: llm_plan-source-ifelse_route-target
+      source: llm_plan
+      sourceHandle: source
+      target: ifelse_route
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: start
+        targetType: llm
+        isInIteration: false
+        isInLoop: false
+      id: start-source-llm_plan-target
+      source: start
+      sourceHandle: source
+      target: llm_plan
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: code
+        isInIteration: false
+        isInLoop: false
+      id: variable_aggregator_1-source-code_clean_transform-target
+      source: variable_aggregator_1
+      sourceHandle: source
+      target: code_clean_transform
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: llm
+        isInIteration: false
+        isInLoop: false
+      id: variable_aggregator_2-source-llm_generate_report-target
+      source: variable_aggregator_2
+      sourceHandle: source
+      target: llm_generate_report
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        selected: false
+        title: 开始
+        type: start
+        variables:
+        - default: ''
+          hint: ''
+          label: 上游变更监听事件
+          options: []
+          placeholder: ''
+          required: true
+          type: text-input
+          variable: upstream_change_event
+        - default: ''
+          hint: ''
+          label: MySQL连接与增量查询配置
+          options: []
+          placeholder: ''
+          required: true
+          type: text-input
+          variable: mysql_connection_config
+        - default: ''
+          hint: ''
+          label: RESTful API端点与认证配置
+          options: []
+          placeholder: ''
+          required: true
+          type: text-input
+          variable: api_endpoint_config
+        - default: ''
+          hint: ''
+          label: 内部通用Schema定义
+          options: []
+          placeholder: ''
+          required: true
+          type: text-input
+          variable: internal_schema_definition
+        - default: ''
+          hint: ''
+          label: 维表关联配置
+          options: []
+          placeholder: ''
+          required: false
+          type: text-input
+          variable: dimension_table_config
+        - default: ''
+          hint: ''
+          label: 分库分表路由规则（基于租户ID）
+          options: []
+          placeholder: ''
+          required: true
+          type: text-input
+          variable: routing_rules
+        - default: ''
+          hint: ''
+          label: 目标ClickHouse集群配置
+          options: []
+          placeholder: ''
+          required: true
+          type: text-input
+          variable: clickhouse_cluster_config
+        - default: ''
+          hint: ''
+          label: 写入失败阈值
+          options: []
+          placeholder: ''
+          required: false
+          type: text-input
+          variable: failure_threshold
+        - default: ''
+          hint: ''
+          label: S3死信队列存储配置
+          options: []
+          placeholder: ''
+          required: false
+          type: text-input
+          variable: s3_dead_letter_config
+      height: 72
+      id: start
+      position:
+        x: 80
+        y: 280
+      positionAbsolute:
+        x: 80
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            {{#sys.files#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: false
+            size: 10
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: deepseek-chat
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - role: system
+          text: '分析上游变更事件，确定需要同步的数据源（MySQL、API或两者）和对应的查询参数。输出格式为JSON，包含字段：sources（数组，值为''mysql''或''api''）、mysql_query_params（如有）、api_query_params（如有）。
+
+
+            用户输入：
+
+            - upstream_change_event: {{#start.upstream_change_event#}}
+
+            - mysql_connection_config: {{#start.mysql_connection_config#}}
+
+            - api_endpoint_config: {{#start.api_endpoint_config#}}
+
+            - internal_schema_definition: {{#start.internal_schema_definition#}}
+
+            - dimension_table_config: {{#start.dimension_table_config#}}
+
+            - routing_rules: {{#start.routing_rules#}}
+
+            - clickhouse_cluster_config: {{#start.clickhouse_cluster_config#}}
+
+            - failure_threshold: {{#start.failure_threshold#}}
+
+            - s3_dead_letter_config: {{#start.s3_dead_letter_config#}}
+
+
+            输出要求：
+
+            - 只输出最终结果，不要输出推理过程或解释
+
+            - 不要输出 markdown 代码块围栏（```）'
+        selected: false
+        title: 解析变更事件与生成执行计划
+        type: llm
+        vision:
+          enabled: false
+      height: 87
+      id: llm_plan
+      position:
+        x: 380
+        y: 280
+      positionAbsolute:
+        x: 380
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        cases:
+        - case_id: mysql_only
+          id: mysql_only
+          logical_operator: or
+          conditions:
+          - id: cond_ac06b087
+            varType: string
+            comparison_operator: contains
+            value: ROUTE=mysql_only
+            variable_selector:
+            - llm_plan
+            - text
+        - case_id: api_only
+          id: api_only
+          logical_operator: or
+          conditions:
+          - id: cond_9f0225ba
+            varType: string
+            comparison_operator: contains
+            value: ROUTE=api_only
+            variable_selector:
+            - llm_plan
+            - text
+        - case_id: both
+          id: both
+          logical_operator: or
+          conditions:
+          - id: cond_e5d61df8
+            varType: string
+            comparison_operator: contains
+            value: ROUTE=both
+            variable_selector:
+            - llm_plan
+            - text
+        selected: false
+        title: 路由至数据源采集
+        type: if-else
+      height: 99
+      id: ifelse_route
+      position:
+        x: 680
+        y: 280
+      positionAbsolute:
+        x: 680
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        code: "\nimport json\n\ndef main(arg1: str = \"\", arg2: str = \"\", arg3:\
+          \ str = \"\"):\n    values = []\n    values.append(arg1)\n    values.append(arg2)\n\
+          \    values.append(arg3)\n    for v in values:\n        if v is None:\n\
+          \            continue\n        if isinstance(v, str) and v.strip():\n  \
+          \          return {\"output\": v}\n        if not isinstance(v, str):\n\
+          \            try:\n                s = json.dumps(v, ensure_ascii=False)\n\
+          \                if isinstance(s, str) and s.strip():\n                \
+          \    return {\"output\": s}\n            except Exception:\n           \
+          \     pass\n    return {\"output\": \"\"}\n"
+        code_language: python3
+        outputs:
+          output:
+            type: string
+            children: null
+        selected: false
+        title: 合并采集数据
+        type: code
+        variables:
+        - variable: arg1
+          value_selector:
+          - ifelse_route
+          - result
+        - variable: arg2
+          value_selector:
+          - ifelse_route
+          - result
+        - variable: arg3
+          value_selector:
+          - ifelse_route
+          - result
+      height: 51
+      id: variable_aggregator_1
+      position:
+        x: 980
+        y: 280
+      positionAbsolute:
+        x: 980
+        y: 280
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        code: "def clean_and_transform(raw_data, schema_def, dim_config):\n    # 1.\
+          \ 解析原始数据\n    # 2. 根据schema格式化字段\n    # 3. 去重（基于业务主键）\n    # 4. 关联维表（如果配置了dim_config）\n\
+          \    # 5. 返回清洗后的数据列表\n    cleaned_data = []  # 示例\n    return cleaned_data\n"
+        code_language: python
+        outputs:
+          result:
+            type: string
+            children: null
+        selected: false
+        title: 数据清洗与转换
+        type: code
+        variables:
+        - value_selector:
+          - variable_aggregator_1
+          - output
+          variable: raw_data
+        - value_selector:
+          - start
+          - internal_schema_definition
+          variable: internal_schema_definition
+        - value_selector:
+          - start
+          - dimension_table_config
+          variable: dimension_table_config
+      height: 51
+      id: code_clean_transform
+      position:
+        x: 1280
+        y: 280
+      positionAbsolute:
+        x: 1280
+        y: 280
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        code: "def route_and_batch(cleaned_data, routing_rules):\n    # 1. 根据租户ID和路由规则，将数据分配到不同的目标表\n\
+          \    # 2. 按目标表分批，每批大小适中\n    # 3. 返回结构：{'target_table_1': [batch1, batch2,\
+          \ ...], ...}\n    batched_data = {}  # 示例\n    return batched_data\n"
+        code_language: python
+        outputs:
+          result:
+            type: string
+            children: null
+        selected: false
+        title: 路由与分批
+        type: code
+        variables:
+        - value_selector:
+          - code_clean_transform
+          - output
+          variable: cleaned_data
+        - value_selector:
+          - start
+          - routing_rules
+          variable: routing_rules
+      height: 51
+      id: code_route_batch
+      position:
+        x: 1580
+        y: 280
+      positionAbsolute:
+        x: 1580
+        y: 280
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        code: "def handle_failure(failed_records, s3_config):\n    # 1. 将失败记录格式化\n\
+          \    # 2. 上传至S3死信队列\n    # 3. 返回S3位置信息\n    location = \"s3://bucket/path/failed_records.json\"\
+          \  # 示例\n    return location\n"
+        code_language: python
+        outputs:
+          result:
+            type: string
+            children: null
+        selected: false
+        title: 处理失败记录
+        type: code
+        variables:
+        - value_selector:
+          - tool_write_clickhouse
+          - output
+          - failed_records
+          variable: failed_records
+        - value_selector:
+          - start
+          - s3_dead_letter_config
+          variable: s3_dead_letter_config
+      height: 51
+      id: code_handle_failure
+      position:
+        x: 1880
+        y: 280
+      positionAbsolute:
+        x: 1880
+        y: 280
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        code: "\nimport json\n\ndef main(arg1: str = \"\", arg2: str = \"\"):\n  \
+          \  values = []\n    values.append(arg1)\n    values.append(arg2)\n    for\
+          \ v in values:\n        if v is None:\n            continue\n        if\
+          \ isinstance(v, str) and v.strip():\n            return {\"output\": v}\n\
+          \        if not isinstance(v, str):\n            try:\n                s\
+          \ = json.dumps(v, ensure_ascii=False)\n                if isinstance(s,\
+          \ str) and s.strip():\n                    return {\"output\": s}\n    \
+          \        except Exception:\n                pass\n    return {\"output\"\
+          : \"\"}\n"
+        code_language: python3
+        outputs:
+          output:
+            type: string
+            children: null
+        selected: false
+        title: 聚合最终结果
+        type: code
+        variables:
+        - variable: arg1
+          value_selector:
+          - code_handle_failure
+          - result
+        - variable: arg2
+          value_selector:
+          - code_route_batch
+          - result
+      height: 51
+      id: variable_aggregator_2
+      position:
+        x: 2180
+        y: 280
+      positionAbsolute:
+        x: 2180
+        y: 280
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            {{#sys.files#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: false
+            size: 10
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: deepseek-chat
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - role: system
+          text: '根据数据写入结果和可能的死信记录，生成一份结构化的数据同步报告。报告需包含：成功/失败记录数、涉及的目标表、同步延迟估算、吞吐量指标。同时，生成数据血缘与同步位点已更新的确认语句，以及监控指标已推送至Prometheus的确认。输出格式为JSON，包含字段：data_sync_report、dead_letter_records_location、metadata_update_confirmation、prometheus_metrics_pushed。
+
+
+            用户输入：
+
+            - upstream_change_event: {{#start.upstream_change_event#}}
+
+            - mysql_connection_config: {{#start.mysql_connection_config#}}
+
+            - api_endpoint_config: {{#start.api_endpoint_config#}}
+
+            - internal_schema_definition: {{#start.internal_schema_definition#}}
+
+            - dimension_table_config: {{#start.dimension_table_config#}}
+
+            - routing_rules: {{#start.routing_rules#}}
+
+            - clickhouse_cluster_config: {{#start.clickhouse_cluster_config#}}
+
+            - failure_threshold: {{#start.failure_threshold#}}
+
+            - s3_dead_letter_config: {{#start.s3_dead_letter_config#}}
+
+
+            【上游节点输出结果】:
+
+            - variable_aggregator_2: {{#variable_aggregator_2.output#}}
+
+
+            输出要求：
+
+            - 只输出最终结果，不要输出推理过程或解释
+
+            - 不要输出 markdown 代码块围栏（```）
+
+
+            请把结果整理成固定结构输出：
+
+            【最终结果】
+
+            不要输出解释。'
+        selected: false
+        title: 生成同步报告与更新元数据
+        type: llm
+        vision:
+          enabled: false
+      height: 87
+      id: llm_generate_report
+      position:
+        x: 2480
+        y: 280
+      positionAbsolute:
+        x: 2480
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    - data:
+        answer: '{{#llm_generate_report.text#}}'
+        selected: false
+        title: 输出结果
+        type: answer
+        variables: []
+      height: 102
+      id: answer
+      position:
+        x: 2780
+        y: 280
+      positionAbsolute:
+        x: 2780
+        y: 280
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+    viewport:
+      x: -159.26539869531166
+      y: 186.60632074709312
+      zoom: 0.7578582832551991
+  rag_pipeline_variables: []

@@ -1,0 +1,606 @@
+{
+  "timestamp": "2026-04-16T09:55:58.247757",
+  "model_name": "deepseek-chat",
+  "provider": "deepseek",
+  "prompt_version": "v2.1",
+  "schema_version": "wf-spec.v2",
+  "requirement": {
+    "app_name": "自动化数据处理工作流",
+    "description": "一个中等复杂的八节点数据处理工作流，用于每日定时处理FTP服务器上的CSV日志文件。流程包括数据读取、清洗转换、地理位置信息补全、数据入库、业务规则判断、告警触发、报表生成以及执行结果汇总回传。支持异常捕获与断点续传。",
+    "scene": "generic",
+    "user_goal": "自动化完成每日日志数据的处理、分析、入库、监控与报告生成，确保数据质量，及时识别风险，并汇总流程执行状态。",
+    "inputs": [
+      {
+        "name": "ftp_config",
+        "label": "FTP服务器配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "api_credentials",
+        "label": "外部API服务凭证",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "db_connection",
+        "label": "云数据库连接信息",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "alert_rules",
+        "label": "高风险操作规则定义",
+        "type": "paragraph",
+        "required": false
+      },
+      {
+        "name": "report_template",
+        "label": "统计报表模板",
+        "type": "file",
+        "required": false
+      },
+      {
+        "name": "monitor_platform_url",
+        "label": "监控平台回传地址",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "output_contract": {
+      "summary_report": "最终生成的统计报表文件或链接",
+      "execution_log": "包含各节点状态、时间戳和详细信息的结构化日志",
+      "alert_status": "本次流程是否触发了告警（是/否）及详情",
+      "data_processing_summary": "数据清洗、转换、补全、入库的记录数统计",
+      "final_status": "流程整体执行状态（成功/部分成功/失败）",
+      "checkpoint_info": "用于断点续传的检查点信息（如果启用）"
+    },
+    "capabilities": [
+      "input_check",
+      "planning",
+      "tool_call",
+      "branching",
+      "generation",
+      "formatting"
+    ],
+    "node_preferences": {
+      "target_node_count": 8,
+      "need_private_kb": false,
+      "need_code_node": true,
+      "need_tools": true,
+      "need_branching": true
+    },
+    "runtime_config": {
+      "schedule": "0 2 * * *",
+      "error_handling": "catch_and_log_with_checkpoint",
+      "resume_from_checkpoint": true,
+      "concurrency": "sequential",
+      "model_tier": "deepseek-chat",
+      "allow_autofix_ifelse": false,
+      "allow_autowrap_fail_branch": false,
+      "max_fail_branch_nodes": 2
+    },
+    "constraints": [
+      "流程必须在每日指定时间自动触发。",
+      "数据处理需保证数据质量，去除空值与异常。",
+      "调用外部API补全信息时需处理可能的网络超时或服务不可用。",
+      "高风险操作检测必须基于可配置的规则引擎。",
+      "流程执行状态和日志必须汇总并回传到指定监控平台。",
+      "整个流程需实现异常捕获，并在可能的情况下支持从断点恢复执行。"
+    ]
+  },
+  "candidate_scores": [
+    {
+      "id": "cand_1",
+      "score": 98.491,
+      "ok": true,
+      "warnings": [
+        "工具节点 tool_geolocation_api url 已重写为白名单地址",
+        "工具节点 tool_geolocation_api headers 含敏感字段，已清空",
+        "工具节点 tool_send_monitor url 已重写为白名单地址",
+        "已移除 code_read_ftp 的 fail-branch 配置以避免生成冗余兜底节点",
+        "检测到 llm_generate_report 存在多分支汇入，已插入 variable_aggregator=agg_762193cc"
+      ],
+      "stats": {
+        "total_nodes": 11,
+        "type_counts": {
+          "start": 1,
+          "code": 3,
+          "tool": 2,
+          "ifelse": 1,
+          "llm": 1,
+          "variable_aggregator": 2,
+          "answer": 1
+        },
+        "non_llm_node_ratio": 0.9091,
+        "has_path_start_to_answer": true
+      },
+      "repair_rounds": 1
+    }
+  ],
+  "selected_candidate_id": "cand_1",
+  "selected_spec": {
+    "workflow_name": "自动化数据处理工作流",
+    "description": "每日定时处理FTP服务器上的CSV日志文件，包括数据读取、清洗转换、地理位置信息补全、数据入库、业务规则判断、告警触发、报表生成以及执行结果汇总回传。支持异常捕获与断点续传。",
+    "scene": "generic",
+    "inputs": [
+      {
+        "name": "ftp_config",
+        "label": "FTP服务器配置",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "api_credentials",
+        "label": "外部API服务凭证",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "db_connection",
+        "label": "云数据库连接信息",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "alert_rules",
+        "label": "高风险操作规则定义",
+        "type": "paragraph",
+        "required": false
+      },
+      {
+        "name": "report_template",
+        "label": "统计报表模板",
+        "type": "file",
+        "required": false
+      },
+      {
+        "name": "monitor_platform_url",
+        "label": "监控平台回传地址",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "output_contract": {
+      "summary_report": "最终生成的统计报表文件或链接",
+      "execution_log": "包含各节点状态、时间戳和详细信息的结构化日志",
+      "alert_status": "本次流程是否触发了告警（是/否）及详情",
+      "data_processing_summary": "数据清洗、转换、补全、入库的记录数统计",
+      "final_status": "流程整体执行状态（成功/部分成功/失败）",
+      "checkpoint_info": "用于断点续传的检查点信息（如果启用）"
+    },
+    "steps": [
+      {
+        "id": "start",
+        "type": "start",
+        "title": "开始"
+      },
+      {
+        "id": "code_read_ftp",
+        "type": "code",
+        "title": "读取FTP数据",
+        "config": {
+          "language": "python",
+          "script": "import json\nimport paramiko\nfrom io import StringIO\n\nftp_config = json.loads(variables['ftp_config'])\nhostname = ftp_config.get('hostname')\nport = ftp_config.get('port', 21)\nusername = ftp_config.get('username')\npassword = ftp_config.get('password')\nremote_path = ftp_config.get('remote_path', '/')\n\nssh_client = paramiko.SSHClient()\nssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())\nssh_client.connect(hostname, port, username, password)\nsftp = ssh_client.open_sftp()\n\nremote_file = sftp.open(remote_path)\ncsv_content = remote_file.read().decode('utf-8')\nremote_file.close()\nsftp.close()\nssh_client.close()\n\noutput = {\n    'raw_data': csv_content,\n    'file_size': len(csv_content),\n    'status': 'success'\n}\nprint(f'成功读取FTP文件，大小: {len(csv_content)} 字节')",
+          "variables": [
+            {
+              "variable": "ftp_config",
+              "value_selector": [
+                "start",
+                "ftp_config"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "code_clean_data",
+        "type": "code",
+        "title": "数据清洗转换",
+        "config": {
+          "language": "python",
+          "script": "import pandas as pd\nimport json\nfrom io import StringIO\n\nraw_data = variables['raw_data']\ndf = pd.read_csv(StringIO(raw_data))\n\noriginal_count = len(df)\nprint(f'原始数据记录数: {original_count}')\n\ndf_cleaned = df.dropna()\ncleaned_count = len(df_cleaned)\nprint(f'清洗后记录数: {cleaned_count}')\n\ndf_cleaned['timestamp'] = pd.to_datetime(df_cleaned['timestamp'], errors='coerce')\ndf_cleaned = df_cleaned.dropna(subset=['timestamp'])\n\ndf_cleaned['value'] = pd.to_numeric(df_cleaned['value'], errors='coerce')\ndf_cleaned = df_cleaned.dropna(subset=['value'])\n\nfinal_count = len(df_cleaned)\nprint(f'转换后有效记录数: {final_count}')\n\ncleaned_csv = df_cleaned.to_csv(index=False)\noutput = {\n    'cleaned_data': cleaned_csv,\n    'original_count': original_count,\n    'cleaned_count': cleaned_count,\n    'final_count': final_count,\n    'dataframe_json': df_cleaned.to_json(orient='records')\n}",
+          "example_key": "clean_text",
+          "variables": [
+            {
+              "variable": "raw_data",
+              "value_selector": [
+                "code_read_ftp",
+                "output",
+                "raw_data"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "tool_geolocation_api",
+        "type": "tool",
+        "title": "补全地理位置信息",
+        "config": {
+          "method": "post",
+          "url": "https://httpbin.org/get",
+          "headers": "",
+          "body": "{\"data\": \"${dataframe_json}\", \"action\": \"geolocation_enrichment\"}",
+          "variables": [
+            {
+              "variable": "api_credentials",
+              "value_selector": [
+                "start",
+                "api_credentials"
+              ]
+            },
+            {
+              "variable": "dataframe_json",
+              "value_selector": [
+                "code_clean_data",
+                "output",
+                "dataframe_json"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "code_db_insert",
+        "type": "code",
+        "title": "数据入库",
+        "config": {
+          "language": "python",
+          "script": "import json\nimport pandas as pd\nfrom io import StringIO\nimport psycopg2\nfrom psycopg2 import sql\n\ndb_connection = json.loads(variables['db_connection'])\ncleaned_data = variables['cleaned_data']\nenriched_data_json = variables.get('enriched_data', '{}')\n\nconn = psycopg2.connect(\n    host=db_connection.get('host'),\n    port=db_connection.get('port', 5432),\n    database=db_connection.get('database'),\n    user=db_connection.get('user'),\n    password=db_connection.get('password')\n)\n\ncursor = conn.cursor()\ndf = pd.read_csv(StringIO(cleaned_data))\n\nif enriched_data_json and enriched_data_json != '{}':\n    enriched_df = pd.read_json(enriched_data_json, orient='records')\n    df = pd.merge(df, enriched_df, on='id', how='left')\n\ninsert_count = 0\nfor _, row in df.iterrows():\n    insert_query = sql.SQL(\"\"\"\n        INSERT INTO daily_logs (timestamp, user_id, action, value, location, ip_address)\n        VALUES (%s, %s, %s, %s, %s, %s)\n    \"\"\")\n    cursor.execute(insert_query, (\n        row['timestamp'],\n        row.get('user_id'),\n        row.get('action'),\n        row.get('value'),\n        row.get('location', ''),\n        row.get('ip_address', '')\n    ))\n    insert_count += 1\n\nconn.commit()\ncursor.close()\nconn.close()\n\noutput = {\n    'inserted_count': insert_count,\n    'status': 'success'\n}\nprint(f'成功插入 {insert_count} 条记录到数据库')",
+          "variables": [
+            {
+              "variable": "db_connection",
+              "value_selector": [
+                "start",
+                "db_connection"
+              ]
+            },
+            {
+              "variable": "cleaned_data",
+              "value_selector": [
+                "code_clean_data",
+                "output",
+                "cleaned_data"
+              ]
+            },
+            {
+              "variable": "enriched_data",
+              "value_selector": [
+                "tool_geolocation_api",
+                "output",
+                "data"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "ifelse_alert_check",
+        "type": "ifelse",
+        "title": "高风险操作检测",
+        "config": {
+          "cases": [
+            {
+              "id": "high_risk",
+              "logical_operator": "or",
+              "conditions": [
+                {
+                  "variable": "alert_rules",
+                  "operator": "not_empty",
+                  "value": ""
+                }
+              ]
+            },
+            {
+              "id": "normal",
+              "logical_operator": "and",
+              "conditions": []
+            }
+          ]
+        }
+      },
+      {
+        "id": "llm_generate_report",
+        "type": "llm",
+        "title": "生成统计报表",
+        "config": {
+          "prompt": "基于以下数据处理结果生成一份详细的统计报告：\n\n原始数据记录数：${original_count}\n清洗后记录数：${cleaned_count}\n最终有效记录数：${final_count}\n成功入库记录数：${inserted_count}\n地理位置信息补全状态：${geolocation_status}\n\n请生成包含以下内容的报告：\n1. 数据处理概览\n2. 数据质量分析\n3. 入库统计\n4. 异常情况说明（如有）\n5. 建议与改进措施\n\n报告格式要求：使用Markdown格式，包含标题、章节、表格和关键指标突出显示。",
+          "variables": [
+            {
+              "variable": "original_count",
+              "value_selector": [
+                "code_clean_data",
+                "output",
+                "original_count"
+              ]
+            },
+            {
+              "variable": "cleaned_count",
+              "value_selector": [
+                "code_clean_data",
+                "output",
+                "cleaned_count"
+              ]
+            },
+            {
+              "variable": "final_count",
+              "value_selector": [
+                "code_clean_data",
+                "output",
+                "final_count"
+              ]
+            },
+            {
+              "variable": "inserted_count",
+              "value_selector": [
+                "code_db_insert",
+                "output",
+                "inserted_count"
+              ]
+            },
+            {
+              "variable": "geolocation_status",
+              "value_selector": [
+                "tool_geolocation_api",
+                "output",
+                "status"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "variable_aggregator",
+        "type": "variable_aggregator",
+        "title": "执行结果汇总",
+        "config": {
+          "variables": [
+            {
+              "variable": "data_summary",
+              "value_selector": [
+                "code_clean_data",
+                "output"
+              ]
+            },
+            {
+              "variable": "db_result",
+              "value_selector": [
+                "code_db_insert",
+                "output"
+              ]
+            },
+            {
+              "variable": "report_content",
+              "value_selector": [
+                "llm_generate_report",
+                "output"
+              ]
+            },
+            {
+              "variable": "alert_triggered",
+              "value_selector": [
+                "ifelse_alert_check",
+                "output",
+                "branch"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "tool_send_monitor",
+        "type": "tool",
+        "title": "回传监控平台",
+        "config": {
+          "method": "post",
+          "url": "https://httpbin.org/get",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": "{\"workflow_name\": \"自动化数据处理工作流\", \"execution_time\": \"${current_timestamp}\", \"data_processing_summary\": ${data_summary}, \"database_insert_result\": ${db_result}, \"report_generated\": true, \"alert_triggered\": \"${alert_triggered}\", \"final_status\": \"success\", \"checkpoint_info\": {\"last_successful_step\": \"tool_send_monitor\", \"timestamp\": \"${current_timestamp}\"}}",
+          "variables": [
+            {
+              "variable": "monitor_platform_url",
+              "value_selector": [
+                "start",
+                "monitor_platform_url"
+              ]
+            },
+            {
+              "variable": "data_summary",
+              "value_selector": [
+                "variable_aggregator",
+                "output",
+                "data_summary"
+              ]
+            },
+            {
+              "variable": "db_result",
+              "value_selector": [
+                "variable_aggregator",
+                "output",
+                "db_result"
+              ]
+            },
+            {
+              "variable": "alert_triggered",
+              "value_selector": [
+                "variable_aggregator",
+                "output",
+                "alert_triggered"
+              ]
+            },
+            {
+              "variable": "current_timestamp",
+              "value_selector": [
+                "system",
+                "timestamp"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "answer",
+        "type": "answer",
+        "title": "流程完成"
+      },
+      {
+        "id": "agg_762193cc",
+        "type": "variable_aggregator",
+        "title": "分支汇合",
+        "config": {}
+      }
+    ],
+    "edges": [
+      {
+        "source": "agg_762193cc",
+        "target": "llm_generate_report"
+      },
+      {
+        "source": "code_clean_data",
+        "target": "tool_geolocation_api"
+      },
+      {
+        "source": "code_db_insert",
+        "target": "ifelse_alert_check"
+      },
+      {
+        "source": "code_read_ftp",
+        "target": "code_clean_data"
+      },
+      {
+        "source": "ifelse_alert_check",
+        "target": "agg_762193cc",
+        "branch": "high_risk"
+      },
+      {
+        "source": "ifelse_alert_check",
+        "target": "agg_762193cc",
+        "branch": "normal"
+      },
+      {
+        "source": "llm_generate_report",
+        "target": "variable_aggregator"
+      },
+      {
+        "source": "start",
+        "target": "code_read_ftp"
+      },
+      {
+        "source": "tool_geolocation_api",
+        "target": "code_db_insert"
+      },
+      {
+        "source": "tool_send_monitor",
+        "target": "answer"
+      },
+      {
+        "source": "variable_aggregator",
+        "target": "tool_send_monitor"
+      }
+    ],
+    "meta": {
+      "inserted_aggregators": 1,
+      "allow_autofix_ifelse": false,
+      "allow_autowrap_fail_branch": false,
+      "max_fail_branch_nodes": 2,
+      "autofix_warnings": 0,
+      "planning_mode": "llm_v2",
+      "model": "deepseek-chat",
+      "provider": "deepseek",
+      "prompt_version": "v2.1",
+      "schema_version": "wf-spec.v2",
+      "score": 98.491,
+      "selected_candidate_id": "cand_1",
+      "complexity_level": "complex",
+      "candidate_count": 3
+    },
+    "requirement_meta": {
+      "app_name": "自动化数据处理工作流",
+      "description": "一个中等复杂的八节点数据处理工作流，用于每日定时处理FTP服务器上的CSV日志文件。流程包括数据读取、清洗转换、地理位置信息补全、数据入库、业务规则判断、告警触发、报表生成以及执行结果汇总回传。支持异常捕获与断点续传。",
+      "scene": "generic",
+      "user_goal": "自动化完成每日日志数据的处理、分析、入库、监控与报告生成，确保数据质量，及时识别风险，并汇总流程执行状态。",
+      "inputs": [
+        {
+          "name": "ftp_config",
+          "label": "FTP服务器配置",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "api_credentials",
+          "label": "外部API服务凭证",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "db_connection",
+          "label": "云数据库连接信息",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "alert_rules",
+          "label": "高风险操作规则定义",
+          "type": "paragraph",
+          "required": false
+        },
+        {
+          "name": "report_template",
+          "label": "统计报表模板",
+          "type": "file",
+          "required": false
+        },
+        {
+          "name": "monitor_platform_url",
+          "label": "监控平台回传地址",
+          "type": "text",
+          "required": true
+        }
+      ],
+      "output_contract": {
+        "summary_report": "最终生成的统计报表文件或链接",
+        "execution_log": "包含各节点状态、时间戳和详细信息的结构化日志",
+        "alert_status": "本次流程是否触发了告警（是/否）及详情",
+        "data_processing_summary": "数据清洗、转换、补全、入库的记录数统计",
+        "final_status": "流程整体执行状态（成功/部分成功/失败）",
+        "checkpoint_info": "用于断点续传的检查点信息（如果启用）"
+      },
+      "capabilities": [
+        "input_check",
+        "planning",
+        "tool_call",
+        "branching",
+        "generation",
+        "formatting"
+      ],
+      "node_preferences": {
+        "target_node_count": 8,
+        "need_private_kb": false,
+        "need_code_node": true,
+        "need_tools": true,
+        "need_branching": true
+      },
+      "runtime_config": {
+        "schedule": "0 2 * * *",
+        "error_handling": "catch_and_log_with_checkpoint",
+        "resume_from_checkpoint": true,
+        "concurrency": "sequential",
+        "model_tier": "deepseek-chat",
+        "allow_autofix_ifelse": false,
+        "allow_autowrap_fail_branch": false,
+        "max_fail_branch_nodes": 2
+      },
+      "constraints": [
+        "流程必须在每日指定时间自动触发。",
+        "数据处理需保证数据质量，去除空值与异常。",
+        "调用外部API补全信息时需处理可能的网络超时或服务不可用。",
+        "高风险操作检测必须基于可配置的规则引擎。",
+        "流程执行状态和日志必须汇总并回传到指定监控平台。",
+        "整个流程需实现异常捕获，并在可能的情况下支持从断点恢复执行。"
+      ]
+    }
+  }
+}
